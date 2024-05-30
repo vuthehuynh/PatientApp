@@ -63,20 +63,13 @@ if __name__ == '__main__':
 
     # If the menu is cluttered, just rearrange it into sections!
     # completely optional, but if you have too many entries, you can make it nicer by using accordian menus
-    if user_access_level > 1:
+    if user_access_level == 1:
         complex_nav = {
             # 'Home': ['Home'],
             'Dashboard': ['Dashboard'],
             'Receive': ['Receive'],
             'Account': ['Account'],
             
-        }
-    elif user_access_level == 1:
-        complex_nav = {
-            # 'Home': ['Home'],
-            'Dashboard': ['Dashboard'],
-            'Receive': ['Receive'],
-            'Account': ['Account']
         }
     else:
         complex_nav = {

@@ -77,7 +77,7 @@ class LoginApp(HydraHeadApp):
                 time.sleep(1)
 
                 #access control uses an int value to allow for levels of permission that can be set for each user, this can then be checked within each app seperately.
-                self.set_access(form_data['access_level'], form_data['username'])
+                self.set_access(access_level, form_data['username'])
 
                 #Do the kick to the home page
                 self.do_redirect()
@@ -93,6 +93,7 @@ class LoginApp(HydraHeadApp):
         data: list = self.db.fetch_all_records(table_name)
         for data_item in data:
             account: SingupUser = SingupUser(*data_item[1:])
-            if account.username == login_data['username'] and account.password == hash_password(login_data['password']):
+            # if account.username == login_data['username'] and account.password == hash_password(login_data['password']):
+            if account.username == login_data['username'] and account.password == login_data['password']:
                 return account.access_level
         return 0
