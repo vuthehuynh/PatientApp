@@ -8,6 +8,7 @@ class SingupUser:
     username: str
     password: str
     access_level: int
+    clinic: str
 
 @dataclass
 class Clinic:
@@ -91,7 +92,8 @@ class DatabaseManager:
             "id INTEGER PRIMARY KEY", 
             "username TEXT", 
             "password TEXT",
-            "access_level INTEGER NOT NULL"
+            "access_level INTEGER NOT NULL",
+            "clinic TEXT"
         ]
         self.create_table(table_name, table_fields)
 
