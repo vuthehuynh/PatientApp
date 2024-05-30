@@ -52,7 +52,7 @@ class LoginApp(HydraHeadApp):
         form_state = {}
         form_state['username'] = login_form.text_input('Username')
         form_state['password'] = login_form.text_input('Password',type="password")
-        form_state['access_level'] = login_form.selectbox('Example Access Level',(1,2))
+        # form_state['access_level'] = login_form.selectbox('Example Access Level',(1,2))
         form_state['submitted'] = login_form.form_submit_button('Login')
 
         col1, col2 = parent_container.columns([1,1])

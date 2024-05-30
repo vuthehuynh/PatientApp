@@ -102,7 +102,6 @@ class SignUpApp(HydraHeadApp):
             password=hash_password(signup_data['password']),
             access_level=signup_data['access_level']
         )
-        table_name = dataclass_to_tablename[SingupUser]
         values = (account.username, account.password, account.access_level)
-        self.db.insert_record(table_name, SingupUser, values)
+        self.db.insert_record(SingupUser, values)
 

@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
     #we want to have secure access for this HydraApp, so we provide a login application
     #optional logout label, can be blank for something nicer!
-    app.add_app("Login", apps.LoginApp(title='Login', db=db_manager),is_login=True) 
+    app.add_app("Logout", apps.LoginApp(title='Logout', db=db_manager),is_login=True,icon="🔒") 
 
     #specify a custom loading app for a custom transition between apps, this includes a nice custom spinner
     app.add_loader_app(apps.MyLoadingApp(delay=0.01))
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     #and finally just the entire app and all the children.
     app.run(complex_nav)
 
-    db_manager.close_connection()
+    # db_manager.close_connection()
     # #(DEBUG) print user movements and current login details used by Hydralit
     # #---------------------------------------------------------------------
     # user_access_level, username = app.check_access()

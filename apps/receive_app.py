@@ -124,9 +124,8 @@ class ReceiveApp(HydraHeadApp):
                     city=txt_city,
                     district=txt_district,
                 )
-                table_name = dataclass_to_tablename[PatientInfo]
                 values = (patient_info.city, patient_info.district)
-                self.db.insert_record(table_name, PatientInfo, values)
+                self.db.insert_record(PatientInfo, values)
 
     def page_contact(self):
         st.title("Contact Page")

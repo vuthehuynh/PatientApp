@@ -1,5 +1,6 @@
 import sqlite3
 from dataclasses import dataclass
+from typing import Tuple, Union
 
 # Define data classes for tables
 @dataclass
@@ -9,13 +10,18 @@ class SingupUser:
     access_level: int
 
 @dataclass
+class Clinic:
+    name: str
+
+@dataclass
 class PatientInfo:
     city: str
     district : str
 
 dataclass_to_tablename = {
     SingupUser: "signup_users",
-    PatientInfo: "patient_info"
+    PatientInfo: "patient_info",
+    Clinic: "clinic"
 }
 
 # Database connection and utility functions
@@ -29,9 +35,15 @@ class DatabaseManager:
         query = f"CREATE TABLE IF NOT EXISTS {table_name} ({columns_str})"
         self.cursor.execute(query)
 
-    def insert_record(self, table_name, data_class: dataclass, values):
+    def insert_record(self, data_class: dataclass, values: Union[str, Tuple]):
+        table_name = dataclass_to_tablename[data_class]
         keys = tuple(data_class.__annotations__.keys())
+        if len(keys) == 1:
+            keys = str(keys).replace(",", "")
+        if isinstance(values, str):
+            values = f"('{values}')"
         query = f"INSERT INTO {table_name} {keys} VALUES {values}"
+        print(query)
         self.cursor.execute(query)
         self.conn.commit()
 
@@ -83,11 +95,20 @@ class DatabaseManager:
         ]
         self.create_table(table_name, table_fields)
 
+        # Table patient_info
         table_name = dataclass_to_tablename[PatientInfo]
         table_fields = [
             "id INTEGER PRIMARY KEY", 
             "city TEXT", 
             "district TEXT"
+        ]
+        self.create_table(table_name, table_fields)
+
+        # Table clinic
+        table_name = dataclass_to_tablename[Clinic]
+        table_fields = [
+            "id INTEGER PRIMARY KEY", 
+            "name TEXT"
         ]
         self.create_table(table_name, table_fields)
 
@@ -108,9 +129,9 @@ if __name__ == "__main__":
 
     # Insert records without specifying the id column
     # values = ("john_doe", "password123", 1)
-    # db_manager.insert_record(table_name, SingupUser, values)
+    # db_manager.insert_record(SingupUser, values)
     # values = ("huynh", "password13", 2)
-    # db_manager.insert_record(table_name, SingupUser, values)
+    # db_manager.insert_record(SingupUser, values)
 
     # Update records
     db_manager.update_record(table_name, SingupUser, ("john_doe1", "password12345", 1), 1)
