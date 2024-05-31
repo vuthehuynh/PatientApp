@@ -14,55 +14,21 @@ class AccountApp(HydraHeadApp):
         self.ss = st.session_state        
         self.account_idx_selected = None 
 
-    def _load_account_data(self):
-        singup_db = {}
-        users = self.db.fetch_all_records(dataclass_to_tablename[SingupUser])
-        users = [
-            account[1:] for account in users
-        ]
-        keys = tuple(SingupUser.__annotations__.keys())
-        for key in keys:
-            singup_db[key] = ""
-        return singup_db    
-
-    def _load_clinics(self):
-        users = self.db.fetch_all_records(dataclass_to_tablename[SingupUser])
-        users = [
-            account[1:] for account in users
-        ]
-        keys = tuple(SingupUser.__annotations__.keys())
-        clinics = []
-        for user in users:
-            for key, value in zip(keys, user):
-                if key == 'clinic':
-                    clinics.append(value)
-
-        return clinics
-
-    def _add_clinic(self, txt_clinic):
-        clinic_name = txt_clinic
-        if clinic_name:
-            self.db.insert_record(Clinic, values=(clinic_name))
-            st.toast(f'Clinic {clinic_name} added successfully!')
-
-    def _account_edit(self):
-        edited_rows = st.session_state.ed["edited_rows"]
-        if edited_rows is not None:
-            for row_id, data in edited_rows.items():
-                keys = list(data.keys())
-                values = list(data.values())
-                st.write(f"edited row: {row_id} keys {keys} values {values}")   
-                self.edited_data[row_id] = [keys, values]
-
-
     def run(self):
-        ## Sidebar
+        ## UI Sidebar
         logo_url = './resources/logo.png'
         sidebar_logo(logo_url)
         st.sidebar.markdown("***")
         st.sidebar.title("Account App")
-        page = st.sidebar.radio("Account", options=["Patient Info", "Contact"])
+        page = st.sidebar.radio("Account", options=["Account Info", "DB statistics"])
 
+        ## UI pages
+        if page == "Account Info":
+            self.page_account_info()
+        elif page == "DB statistics":
+            self.page_db_statistics()
+
+    def page_account_info(self):
         ## UI for account table 
         if not hasattr(self, 'account_data'):
             self.account_data = self._load_account_data()
@@ -119,6 +85,74 @@ class AccountApp(HydraHeadApp):
                         st.toast("Account added successfully!")
 
         st.markdown("***")
+
+    def page_db_statistics(self):
+        ## Get list of clinics
+        self.clinics = self._load_clinics()
+        st.markdown("***")
+        
+        ## View list of DB
+        st.header('DB Statistics')
+        db_func = {}
+        for clinic in self.clinics:
+            if not hasattr(self, f'db_{clinic}'):
+                db_func[clinic] = DatabaseManager(f"{clinic}_manager.db")
+
+        db_names = [f"{clinic}_manager.db" for clinic in self.clinics]
+        selected_db_name = st.selectbox("Clinic", options=db_names, index=0) 
+
+        btn_statistics = st.button("Show Statistics")
+        if btn_statistics:
+            _db_name = selected_db_name.split("_")[0]
+            _db_func = db_func.get(_db_name, None)
+            if _db_func is not None:
+                tables = _db_func.get_table_names()
+                st.write(tables)
+            else:
+                st.error("DB not found!")
+            
+    def _load_account_data(self):
+        singup_db = {}
+        users = self.db.fetch_all_records(dataclass_to_tablename[SingupUser])
+        users = [
+            account[1:] for account in users
+        ]
+        keys = tuple(SingupUser.__annotations__.keys())
+        for key in keys:
+            singup_db[key] = ""
+        return singup_db    
+
+    def _load_clinics(self):
+        users = self.db.fetch_all_records(dataclass_to_tablename[SingupUser])
+        users = [
+            account[1:] for account in users
+        ]
+        keys = tuple(SingupUser.__annotations__.keys())
+        clinics = []
+        for user in users:
+            for key, value in zip(keys, user):
+                if key == 'clinic':
+                    clinics.append(value)
+
+        return clinics
+
+    def _add_clinic(self, txt_clinic):
+        clinic_name = txt_clinic
+        if clinic_name:
+            self.db.insert_record(Clinic, values=(clinic_name))
+            st.toast(f'Clinic {clinic_name} added successfully!')
+
+    def _account_edit(self):
+        edited_rows = st.session_state.ed["edited_rows"]
+        if edited_rows is not None:
+            for row_id, data in edited_rows.items():
+                keys = list(data.keys())
+                values = list(data.values())
+                st.write(f"edited row: {row_id} keys {keys} values {values}")   
+                self.edited_data[row_id] = [keys, values]
+
+
+
 
 if __name__ == "__main__":
     db_manager = DatabaseManager("my_database.db")

@@ -43,13 +43,17 @@ if __name__ == '__main__':
     #we can inject a method to be called everytime a user logs out
     @app.logout_callback
     def mylogout_cb():
+        db_account.close_connection()
         print('I was called from Hydralit at logout!')
+        db_manager.close_connection()
+        st.session_state.login = False
 
     #we can inject a method to be called everytime a user logs in
     @app.login_callback
     def mylogin_cb():
         print('I was called from Hydralit at login!')
         st.session_state.login = True
+
     #we can inject a method to be called everytime a user logs in
 
     if not 'login' in st.session_state:
@@ -64,7 +68,7 @@ if __name__ == '__main__':
             app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(title="Dashboard", db=db_manager))            
         else:
             st.warning("No clinic selected")
-            
+
     #if we want to auto login a guest but still have a secure app, we can assign a guest account and go straight in
     # app.enable_guest_access()
 
@@ -72,7 +76,6 @@ if __name__ == '__main__':
     #if the menu is looking shit, use some sections
     #check user access level to determine what should be shown on the menu
     user_access_level, username = app.check_access()
-    # st.write(f"access_level {user_access_level}, username {username}")
 
     # If the menu is cluttered, just rearrange it into sections!
     # completely optional, but if you have too many entries, you can make it nicer by using accordian menus
@@ -95,6 +98,10 @@ if __name__ == '__main__':
     app.run(complex_nav)
 
     # db_manager.close_connection()
+    db_account.close_connection()
+    if 'login' in st.session_state:
+        db_manager.close_connection()
+        
     # #(DEBUG) print user movements and current login details used by Hydralit
     # #---------------------------------------------------------------------
     # user_access_level, username = app.check_access()

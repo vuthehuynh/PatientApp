@@ -48,6 +48,21 @@ class DatabaseManager:
         self.cursor.execute(query)
         self.conn.commit()
 
+    def get_table_names(self):
+        query = f"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
+        self.cursor.execute(query)
+        t_names = self.cursor.fetchall()
+        t_names = [
+            i[0] for i in t_names
+        ]
+        return t_names
+
+    def get_table_numentry(self, table_name):
+        query = f"SELECT COUNT(*) FROM {table_name};"
+        self.cursor.execute(query)
+        count = self.cursor.fetchone()[0]
+        return count
+
     def update_record(self, table_name, data_class: dataclass, values, id: int = None):
         '''
         e.g. update_record("signup_users", SingupUser, ("john_doe1", "password12345", 1), 1)

@@ -58,6 +58,7 @@ class LoginApp(HydraHeadApp):
         col1, col2 = parent_container.columns([1,1])
         if col1.button('Guest Login',key='guestbtn'):
             self.set_access(1, 'guest')
+            self.session_state.clinic = 'PK1'
             self.do_redirect()
         if col2.button('Sign Up',key='signupbtn'):
             self.set_access(-1, 'guest')
