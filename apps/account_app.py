@@ -41,7 +41,11 @@ class AccountApp(HydraHeadApp):
         accounts = self.db.fetch_all_records('signup_users')
         with UI_account[0]:
             account_df = pd.DataFrame(accounts, columns=['id', 'username', 'password', 'access_level', 'clinic'])
-            grid_return = AgGrid(account_df, update_on=["cellClicked"])
+            grid_return = AgGrid(
+                account_df, 
+                update_on=["cellClicked"],
+                fit_columns_on_grid_load=True
+                )
             if grid_return.event_data is not None:
                 _accounts = grid_return.event_data.get("data", None)  
                 if _accounts is not None:

@@ -134,7 +134,14 @@ class ReceiveApp(HydraHeadApp):
         patients_db: List = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])        
 
         patients_df = pd.DataFrame(patients_db, columns=['id', 'city', 'district'])
-        grid_return = AgGrid(patients_df, update_on=["cellClicked"])
+        grid_return = AgGrid(
+            patients_df, 
+            update_on=["cellClicked"],
+            fit_columns_on_grid_load=True,
+            height=300,
+            key="patient_table",
+            reload_data=True
+        )
         if grid_return.event_data is not None:
             _patient_selected = grid_return.event_data.get("data", None)  
             if _patient_selected is not None:

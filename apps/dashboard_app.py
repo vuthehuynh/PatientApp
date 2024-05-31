@@ -4,9 +4,10 @@ import pandas as pd
 from db import DatabaseManager
 from utils import sidebar_logo
 class DashboardApp(HydraHeadApp):
-    def __init__(self, title = '', db: DatabaseManager=None, **kwargs):
+    def __init__(self, user = '', clinic = '', db: DatabaseManager=None, **kwargs):
         self.__dict__.update(kwargs)
-        self.title = title
+        self.user = user
+        self.clinic = clinic    
         self.db = db
 
         
@@ -14,8 +15,8 @@ class DashboardApp(HydraHeadApp):
         logo_url = './resources/logo.png'
         sidebar_logo(logo_url)
         st.sidebar.markdown("***")
-        st.sidebar.title("Dashboard")
-        page = st.sidebar.radio("Account", options=["Patient Info", "Contact"])
+        st.sidebar.title(f"Welcome {self.user}")
+        page = st.sidebar.radio(f"Clinic: {self.clinic}", options=["Patient Info", "Contact"])
 
         st.header('Dashboard')
         l1 = [

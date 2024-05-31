@@ -58,14 +58,15 @@ if __name__ == '__main__':
 
     if not 'login' in st.session_state:
         app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=None))
-        app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(title="Dashboard", db=None))            
+        app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(db=None, user='', clinic=''))            
     else:
         clinic = app.session_state.clinic
         if clinic is not None:
             db_manager = DatabaseManager(f"{clinic}_patient.db")
             db_manager.create_default_table_patient()
             app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=db_manager))
-            app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(title="Dashboard", db=db_manager))            
+            username = app.session_state.username
+            app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(db=db_manager, user=username, clinic=clinic))            
         else:
             st.warning("No clinic selected")
 
