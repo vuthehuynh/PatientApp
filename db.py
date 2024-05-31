@@ -95,7 +95,7 @@ class DatabaseManager:
         self.cursor.execute(query)
         self.conn.commit()
 
-    def fetch_all_records(self, table_name):
+    def fetch_all_records(self, table_name) -> list:
         query = f"SELECT * FROM {table_name}"
         self.cursor.execute(query)
         return self.cursor.fetchall()
@@ -103,7 +103,7 @@ class DatabaseManager:
     def close_connection(self):
         self.conn.close()
 
-    def create_default_table(self):
+    def create_default_table_account(self):
         # Table signup_users
         table_name = dataclass_to_tablename[SingupUser]
         table_fields = [
@@ -115,20 +115,13 @@ class DatabaseManager:
         ]
         self.create_table(table_name, table_fields)
 
+    def create_default_table_patient(self):
         # Table patient_info
         table_name = dataclass_to_tablename[PatientInfo]
         table_fields = [
             "id INTEGER PRIMARY KEY", 
             "city TEXT", 
             "district TEXT"
-        ]
-        self.create_table(table_name, table_fields)
-
-        # Table clinic
-        table_name = dataclass_to_tablename[Clinic]
-        table_fields = [
-            "id INTEGER PRIMARY KEY", 
-            "name TEXT"
         ]
         self.create_table(table_name, table_fields)
 

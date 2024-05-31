@@ -8,7 +8,7 @@ from db import DatabaseManager
 if __name__ == '__main__':
     ## database 
     db_account = DatabaseManager("account.db")
-    db_account.create_default_table()    
+    db_account.create_default_table_account()    
 
     over_theme = {'txc_inactive': '#FFFFFF'}
     #this is the host application, we add children to it and that's it!
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     #we can inject a method to be called everytime a user logs in
     @app.login_callback
     def mylogin_cb():
-        print('I was called from Hydralit at login!')
+        print(f"Welcome back! {app.session_state.username} {app.session_state.clinic}")
         st.session_state.login = True
 
     #we can inject a method to be called everytime a user logs in
@@ -62,8 +62,8 @@ if __name__ == '__main__':
     else:
         clinic = app.session_state.clinic
         if clinic is not None:
-            db_manager = DatabaseManager(f"{clinic}_manager.db")
-            db_manager.create_default_table()
+            db_manager = DatabaseManager(f"{clinic}_patient.db")
+            db_manager.create_default_table_patient()
             app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=db_manager))
             app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(title="Dashboard", db=db_manager))            
         else:
@@ -101,7 +101,7 @@ if __name__ == '__main__':
     db_account.close_connection()
     if 'login' in st.session_state:
         db_manager.close_connection()
-        
+
     # #(DEBUG) print user movements and current login details used by Hydralit
     # #---------------------------------------------------------------------
     # user_access_level, username = app.check_access()
