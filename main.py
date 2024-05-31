@@ -7,8 +7,8 @@ from db import DatabaseManager
 
 if __name__ == '__main__':
     ## database 
-    db_manager = DatabaseManager("my_database.db")
-    db_manager.create_default_table()
+    db_account = DatabaseManager("account.db")
+    db_account.create_default_table()    
 
     over_theme = {'txc_inactive': '#FFFFFF'}
     #this is the host application, we add children to it and that's it!
@@ -26,17 +26,15 @@ if __name__ == '__main__':
 
     #Home button will be in the middle of the nav list now
     # app.add_app("Home", icon="🏠", app=apps.HomeApp(title='Home'),is_home=True)
-    app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=db_manager))
-    app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(title="Dashboard", db=db_manager))
-    app.add_app("Account", icon="📚", app=apps.AccountApp(title="Account", db=db_manager))
+    app.add_app("Account", icon="📚", app=apps.AccountApp(title="Account", db=db_account))
 
     #we have added a sign-up app to demonstrate the ability to run an unsecure app
     #only 1 unsecure app is allowed
-    app.add_app("Signup", icon="🛰️", app=apps.SignUpApp(title='Signup',db=db_manager), is_unsecure=True)
+    app.add_app("Signup", icon="🛰️", app=apps.SignUpApp(title='Signup',db=db_account), is_unsecure=True)
 
     #we want to have secure access for this HydraApp, so we provide a login application
     #optional logout label, can be blank for something nicer!
-    app.add_app("Logout", apps.LoginApp(title='Logout', db=db_manager),is_login=True,icon="🔒") 
+    app.add_app("Logout", apps.LoginApp(title='Logout', db=db_account),is_login=True,icon="🔒") 
 
     #specify a custom loading app for a custom transition between apps, this includes a nice custom spinner
     app.add_loader_app(apps.MyLoadingApp(delay=0.01))
@@ -51,7 +49,22 @@ if __name__ == '__main__':
     @app.login_callback
     def mylogin_cb():
         print('I was called from Hydralit at login!')
+        st.session_state.login = True
+    #we can inject a method to be called everytime a user logs in
 
+    if not 'login' in st.session_state:
+        app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=None))
+        app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(title="Dashboard", db=None))            
+    else:
+        clinic = app.session_state.clinic
+        if clinic is not None:
+            db_manager = DatabaseManager(f"{clinic}_manager.db")
+            db_manager.create_default_table()
+            app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=db_manager))
+            app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(title="Dashboard", db=db_manager))            
+        else:
+            st.warning("No clinic selected")
+            
     #if we want to auto login a guest but still have a secure app, we can assign a guest account and go straight in
     # app.enable_guest_access()
 

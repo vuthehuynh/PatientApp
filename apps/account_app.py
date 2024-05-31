@@ -11,6 +11,8 @@ class AccountApp(HydraHeadApp):
         self.__dict__.update(kwargs)
         self.title = title
         self.db = db
+        self.ss = st.session_state        
+        self.account_idx_selected = None 
 
     def _load_account_data(self):
         singup_db = {}
@@ -36,8 +38,6 @@ class AccountApp(HydraHeadApp):
                     clinics.append(value)
 
         return clinics
-
-
 
     def _add_clinic(self, txt_clinic):
         clinic_name = txt_clinic
@@ -72,28 +72,20 @@ class AccountApp(HydraHeadApp):
         UI_account = st.columns([1,1])
 
 
-        # cb_editable = st.checkbox("Edit", value=False, key='account_editable')
         accounts = self.db.fetch_all_records('signup_users')
-        accounts = [
-            account[1:] for account in accounts
-        ]
-
-        # account_info = st.data_editor(accounts, on_change = self._account_edit, key='ed', disabled=not(cb_editable))
         with UI_account[0]:
-            account_df = pd.DataFrame(accounts, columns=['username', 'password', 'access_level', 'clinic'])
+            account_df = pd.DataFrame(accounts, columns=['id', 'username', 'password', 'access_level', 'clinic'])
             grid_return = AgGrid(account_df, update_on=["cellClicked"])
             if grid_return.event_data is not None:
-                _accounts = grid_return.event_data.get("data", None)   
+                _accounts = grid_return.event_data.get("data", None)  
                 if _accounts is not None:
+                    self.account_idx_selected = _accounts.get("id", None)
                     for k,v in self.account_data.items():
                         self.account_data[k] = _accounts[k]
 
         with UI_account[1]:
-
             tab_edit_account, tab_add_account = st.tabs(["Edit Account", "Add Account"])
-
             with tab_edit_account:
-                # clinics = [v for k,v in self.account_data.items() if k == 'clinic']
                 with st.form("Edit Account", border=True):
                     txt_user_name = st.text_input("Username", value=self.account_data.get('username', ''), key='edit_acc_username')
                     txt_password = st.text_input("Password", value=self.account_data.get('password', ''), key='edit_acc_password')
@@ -107,8 +99,11 @@ class AccountApp(HydraHeadApp):
 
                     btn_submitted = st.form_submit_button("Edit Account")
                     if btn_submitted:
-                        self.db.insert_record(SingupUser, values=(txt_user_name, txt_password, txt_access_level, txt_clinic))
-                        st.toast("Account added successfully!")
+                        table_name = dataclass_to_tablename[SingupUser]
+                        keys = tuple(SingupUser.__annotations__.keys())
+                        values = (txt_user_name, txt_password, txt_access_level, txt_clinic)
+                        self.db.update_record_keys(table_name, keys, values, id=self.account_idx_selected)
+                        st.toast("Account edited successfully!")
 
             with tab_add_account:
                 with st.form("Add Account"):

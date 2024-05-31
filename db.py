@@ -49,6 +49,9 @@ class DatabaseManager:
         self.conn.commit()
 
     def update_record(self, table_name, data_class: dataclass, values, id: int = None):
+        '''
+        e.g. update_record("signup_users", SingupUser, ("john_doe1", "password12345", 1), 1)
+        '''
         keys = tuple(data_class.__annotations__.keys())
         ## generate query UPDATE table_name SET column1 = value1, column2 = value2...., columnN = valueN WHERE [condition]; from keys and values 
         pairs = []
