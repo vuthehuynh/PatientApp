@@ -159,7 +159,7 @@ class ReceiveApp(HydraHeadApp):
                     use_checkbox = True
                     groupSelectsChildren = True 
                     groupSelectsFiltered = True                     
-
+                enable_sidebar = st.checkbox("Enable grid sidebar", value=False)
         ## UI Patient List
         patients_db: List = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])        
         patients_df = pd.DataFrame(patients_db, columns=['id', 'city', 'district'])
@@ -178,6 +178,8 @@ class ReceiveApp(HydraHeadApp):
                     groupSelectsChildren=groupSelectsChildren,
                     groupSelectsFiltered=groupSelectsFiltered,
                 )
+        if enable_sidebar:
+            gb.configure_side_bar()
         gb.configure_grid_options(domLayout="normal")
         gridOptions = gb.build()
         grid_return = AgGrid(
