@@ -5,7 +5,7 @@ import datetime
 from db import DatabaseManager, PatientInfo, dataclass_to_tablename
 from utils import sidebar_logo
 from collections import defaultdict
-from st_aggrid import AgGrid
+from st_aggrid import AgGrid, GridOptionsBuilder
 from typing import List, Dict
 
 class ReceiveApp(HydraHeadApp):
@@ -31,10 +31,11 @@ class ReceiveApp(HydraHeadApp):
         elif page == "Contact":
             self.page_contact()
 
+
     def page_receiving_patients(self):
-        tab_patient, tab_patient_view, tab_patient_edit = st.tabs(["Patients", "Patient List", "Patient Edit"])
-        with tab_patient_view:
-            self._tab_patient_view()
+        tab_patient, tab_patient_edit = st.tabs(["Patients", "Patient Edit"])
+        with tab_patient_edit:
+            self._tab_patient_edit()
 
         with tab_patient:
             self._tab_patient()
@@ -127,21 +128,69 @@ class ReceiveApp(HydraHeadApp):
                     district=txt_district,
                 )
                 values = (patient_info.city, patient_info.district)
-                self.db.insert_record(PatientInfo, values)
+                try:
+                    self.db.insert_record(PatientInfo, values)
+                    st.success("Data saved to DB")
+                except Exception as e:
+                    st.error(f"Error saving db: {e}")
+                st.experimental_rerun()
 
-    def _tab_patient_view(self):
-        ## Load data from database
+    def _btn_delete_selected(self):
+        if self.selected_ids is not None:
+            self.db.delete_records(PatientInfo, ids=self.selected_ids)
+            st.success("Deleted successfully")
+        else:
+            st.warning("No row selected")
+
+    def _tab_patient_edit(self):
+        ## UI expander
+        with st.expander("Patient View Options"):
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col1:    
+                n_rows = st.number_input("rows", min_value=10, value=30)
+            with col2: 
+                grid_height = st.number_input(
+                    "Grid height", min_value=200, max_value=800, value=300
+                )
+            with col3:
+                enable_selection = st.checkbox("Enable row selection", value=True)
+                if enable_selection:
+                    selection_mode = "multiple"
+                    use_checkbox = True
+                    groupSelectsChildren = True 
+                    groupSelectsFiltered = True                     
+
+        ## UI Patient List
         patients_db: List = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])        
-
         patients_df = pd.DataFrame(patients_db, columns=['id', 'city', 'district'])
+
+        gb = GridOptionsBuilder.from_dataframe(patients_df)
+        gb.configure_default_column(
+            groupable=True, value=True, enableRowGroup=True, aggFunc="sum", editable=False
+        )
+
+        if enable_selection:
+            gb.configure_selection(selection_mode)
+            if use_checkbox:
+                gb.configure_selection(
+                    selection_mode,
+                    use_checkbox=True,
+                    groupSelectsChildren=groupSelectsChildren,
+                    groupSelectsFiltered=groupSelectsFiltered,
+                )
+        gb.configure_grid_options(domLayout="normal")
+        gridOptions = gb.build()
         grid_return = AgGrid(
             patients_df, 
+            gridOptions=gridOptions,
             update_on=["cellClicked"],
             fit_columns_on_grid_load=True,
-            height=300,
+            height=grid_height,
             key="patient_table",
             reload_data=True
         )
+        st.button("Delete selected", on_click=self._btn_delete_selected)
+
         if grid_return.event_data is not None:
             _patient_selected = grid_return.event_data.get("data", None)  
             if _patient_selected is not None:
@@ -149,9 +198,22 @@ class ReceiveApp(HydraHeadApp):
                 for k,v in self.patient.items():
                     self.patient[k] = _patient_selected[k]
 
+        selected_data = grid_return["selected_rows"]
+        self.selected_ids = self._get_id(selected_data)
+
+    def _get_id(self, selected_data: pd.DataFrame):
+        if selected_data is not None:
+            data: List = selected_data.to_dict(orient="records")
+            selected_id = [
+                item.get("id", None) for item in data
+            ]
+            return selected_id
+        return None
+
 if __name__ == "__main__":
     # db = DatabaseManager("PK2_patient")
     db_manager = DatabaseManager("PK2_patient.db")
     db_manager.create_default_table_patient()
     patient = ReceiveApp(title="Account", db=db_manager)
     patient.run()
+

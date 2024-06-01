@@ -80,6 +80,19 @@ class DatabaseManager:
         self.cursor.execute(query)
         self.conn.commit()
 
+    def delete_records(self, data_class: dataclass, ids: list = []):
+        '''
+        e.g. update_record("signup_users", SingupUser, ("john_doe1", "password12345", 1), 1)
+        '''
+        table_name = dataclass_to_tablename[data_class]
+        if len(ids) == 1:
+            ids_to_delete_str = str(ids[0])
+        else:
+            ids_to_delete_str = ', '.join(str(_) for _ in ids)
+        query = f"DELETE from {table_name} WHERE id IN ({ids_to_delete_str})"
+        self.cursor.execute(query)
+        self.conn.commit()
+
     def update_record_keys(self, table_name, keys, values, id: int = None):
         '''
         Update record with keys and values
