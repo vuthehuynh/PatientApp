@@ -54,17 +54,6 @@ class ReceiveApp(HydraHeadApp):
                 st.write(f"edited row: {row_id} keys {keys} values {values}")   
                 self.edited_data[row_id] = [keys, values]
 
-    def _load_receiving_paient_data(self):
-        db = {}
-        patient_info = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])
-        patient_info = [
-            account[1:] for account in patient_info
-        ]
-        keys = tuple(PatientInfo.__annotations__.keys())
-        for data, key in zip(patient_info, keys):
-            db[key] = ""
-        return db    
-
     def _save_to_db(self, patient_info):
         print(f"Saving data {self.edited_data}")
         for row_id, data in self.edited_data.items():
@@ -127,7 +116,7 @@ class ReceiveApp(HydraHeadApp):
                     city=txt_city,
                     district=txt_district,
                 )
-                values = (patient_info.city, patient_info.district)
+                values = ('', '', patient_info.city, patient_info.district)
                 try:
                     self.db.insert_record(PatientInfo, values)
                     st.success("Data saved to DB")
@@ -144,25 +133,27 @@ class ReceiveApp(HydraHeadApp):
 
     def _tab_patient_edit(self):
         ## UI expander
-        with st.expander("Patient View Options"):
-            col1, col2, col3 = st.columns([1, 1, 1])
-            with col1:    
-                n_rows = st.number_input("rows", min_value=10, value=30)
-            with col2: 
-                grid_height = st.number_input(
-                    "Grid height", min_value=200, max_value=800, value=300
-                )
-            with col3:
-                enable_selection = st.checkbox("Enable row selection", value=True)
-                if enable_selection:
-                    selection_mode = "multiple"
-                    use_checkbox = True
-                    groupSelectsChildren = True 
-                    groupSelectsFiltered = True                     
-                enable_sidebar = st.checkbox("Enable grid sidebar", value=False)
+        # with st.expander("Patient View Options"):
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col1:    
+            n_rows = st.number_input("rows", min_value=10, value=30)
+        with col2: 
+            grid_height = st.number_input(
+                "Grid height", min_value=200, max_value=800, value=300
+            )
+        with col3:
+            enable_selection = st.checkbox("Enable row selection", value=False)
+            if enable_selection:
+                selection_mode = "multiple"
+                use_checkbox = True
+                groupSelectsChildren = True 
+                groupSelectsFiltered = True                     
+            enable_sidebar = st.checkbox("Enable grid sidebar", value=False)
+
+        st.markdown("***")
         ## UI Patient List
         patients_db: List = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])        
-        patients_df = pd.DataFrame(patients_db, columns=['id', 'city', 'district'])
+        patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
 
         gb = GridOptionsBuilder.from_dataframe(patients_df)
         gb.configure_default_column(

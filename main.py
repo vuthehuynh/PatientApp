@@ -53,20 +53,20 @@ if __name__ == '__main__':
     def mylogin_cb():
         print(f"Welcome back! {app.session_state.username} {app.session_state.clinic}")
         st.session_state.login = True
-
+        st.rerun()
     #we can inject a method to be called everytime a user logs in
 
     if not 'login' in st.session_state:
         app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=None))
-        app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(db=None, user='', clinic=''))            
+        app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(db=None, app_state=None))            
     else:
         clinic = app.session_state.clinic
         if clinic is not None:
             db_manager = DatabaseManager(f"{clinic}_patient.db")
             db_manager.create_default_table_patient()
+
             app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=db_manager))
-            username = app.session_state.username
-            app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(db=db_manager, user=username, clinic=clinic))            
+            app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(db=db_manager, app_state=app.session_state))            
         else:
             st.warning("No clinic selected")
 

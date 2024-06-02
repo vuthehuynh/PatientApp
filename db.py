@@ -15,14 +15,21 @@ class Clinic:
     name: str
 
 @dataclass
+class Room:
+    name: str
+
+@dataclass
 class PatientInfo:
+    room: str
+    bed: str
     city: str
     district : str
 
 dataclass_to_tablename = {
     SingupUser: "signup_users",
     PatientInfo: "patient_info",
-    Clinic: "clinic"
+    Clinic: "clinic",
+    Room: "room"
 }
 
 # Database connection and utility functions
@@ -130,13 +137,20 @@ class DatabaseManager:
 
     def create_default_table_patient(self):
         # Table patient_info
-        table_name = dataclass_to_tablename[PatientInfo]
         table_fields = [
             "id INTEGER PRIMARY KEY", 
+            "room TEXT", 
+            "bed TEXT", 
             "city TEXT", 
             "district TEXT"
         ]
-        self.create_table(table_name, table_fields)
+        self.create_table(dataclass_to_tablename[PatientInfo], table_fields)
+
+        table_fields = [
+            "id INTEGER PRIMARY KEY", 
+            "name TEXT", 
+        ]
+        self.create_table(dataclass_to_tablename[Room], table_fields)
 
 # Usage example
 if __name__ == "__main__":
