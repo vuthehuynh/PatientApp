@@ -53,9 +53,14 @@ class DashboardApp(HydraHeadApp):
         ## TODO: write update room to db
 
         ## Update self.room_list
-        patients: List[Dict] = self.patients_df.to_dict(orient="records")
-        self.room_data: Dict = self._make_room_data(patients)
-        self.room_list: List = self._room_dict_to_list(self.room_data)
+        st.experimental_rerun()
+        # patients: List[Dict] = self.patients_df.to_dict(orient="records")
+        # self.room_data: Dict = self._make_room_data(patients)
+        # self.room_list: List = self._room_dict_to_list(self.room_data)
+
+    def process_data(**kwargs):
+        for key, value in kwargs.items():
+            print(f"{key}: {value}")
 
     def _argrid_update_data(self, data: Dict):
         '''
@@ -71,7 +76,11 @@ class DashboardApp(HydraHeadApp):
             event_type: str = data.get("type", None)
             event_data: dict = data.get("data", None)
             rowIdx: int = data.get("rowIndex", None)
+            converted_data = {k: v for k, v in event_data.items() if k != '__pandas_index'}
+            self.db.patients[rowIdx] = tuple(converted_data.values())
+            ## TODO write to db
             
+
     def _tab_patients(self):
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:    
@@ -100,7 +109,14 @@ class DashboardApp(HydraHeadApp):
         gb.configure_column(
             "room",
             cellEditor='agSelectCellEditor', 
-            cellEditorParams={'values': self.rooms},
+            cellEditorParams={
+                'values': self.rooms,
+                'cellRenderer': 'ColourCellRenderer',
+                'allowTyping': True,
+                'filterList': True,
+                'highlightMatch': True,
+                'valueListMaxHeight': 100
+            },
         )
         gb.configure_default_column(
             groupable=True, value=True, enableRowGroup=True, aggFunc="sum", editable=True
