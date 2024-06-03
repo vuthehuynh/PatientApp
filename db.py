@@ -159,8 +159,11 @@ def fetch_all_records(db_name, table_name) -> list:
     conn.close()
     return records
 
+def read_db(db_name, table_name):
+    data = fetch_all_records(db_name, table_name)
+    return data
 
-def create_default_table_account(db_name, table_name):
+def create_default_db_account(db_name):
     # Table signup_users
     conn = sqlite3.connect(db_name)
     table_fields = [
@@ -170,10 +173,11 @@ def create_default_table_account(db_name, table_name):
         "access_level INTEGER NOT NULL",
         "clinic TEXT"
     ]
+    table_name = TableName.SINGUPUSER.value
     create_table(db_name, table_name, table_fields)
     conn.close()
 
-def create_default_table_patient(db_name, table_name):
+def create_default_db_patient(db_name):
     conn = sqlite3.connect(db_name)
     # Table patient_info
     table_fields = [
@@ -183,49 +187,17 @@ def create_default_table_patient(db_name, table_name):
         "city TEXT", 
         "district TEXT"
     ]
+    table_name = TableName.PATIENTINFO.value    
     create_table(db_name, table_name, table_fields)
 
     table_fields = [
         "id INTEGER PRIMARY KEY", 
         "name TEXT", 
     ]
-    create_table(dataclass_to_tablename[Room], table_fields)
+    table_name = TableName.ROOM.value
+    create_table(db_name, table_name, table_fields)
     conn.close()
 
 # Usage example
 if __name__ == "__main__":
     pass 
-    # db_manager = DatabaseManager("test.db")
-    # db_manager.create_default_table()
-
-    # # Create tables
-    # table_name = "signup_users"
-    # table_fields = [
-    #     "id INTEGER PRIMARY KEY", 
-    #     "username TEXT", 
-    #     "password TEXT",
-    #     "access_level INTEGER NOT NULL"
-    # ]
-    # db_manager.create_table(table_name, table_fields)
-
-    # # Insert records without specifying the id column
-    # # values = ("john_doe", "password123", 1)
-    # # db_manager.insert_record(SingupUser, values)
-    # # values = ("huynh", "password13", 2)
-    # # db_manager.insert_record(SingupUser, values)
-
-    # # Update records
-    # db_manager.update_record(table_name, SingupUser, ("john_doe1", "password12345", 1), 1)
-
-    # # Fetch records
-    # users = db_manager.fetch_all_records(table_name)
-
-    # print("Signup Users:")
-    # for user in users:
-    #     types = []
-    #     for i in user:
-    #         types.append(type(i))
-    #     print(user, types)
-
-    # # Close connection
-    # db_manager.close_connection()

@@ -6,10 +6,6 @@ from typing import List
 from db import fetch_all_records
 
 
-def read_db(db_name, db_table):
-    data = fetch_all_records(db_name, db_table)
-    return data
-
 def hash_password(password):
     # Convert the password to bytes before hashing
     password_bytes = password.encode('utf-8')

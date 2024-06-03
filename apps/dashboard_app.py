@@ -2,14 +2,21 @@ import streamlit as st
 from hydralit import HydraHeadApp
 from st_aggrid import AgGrid, GridOptionsBuilder
 import pandas as pd
-from db import DatabaseManager, Room, PatientInfo, dataclass_to_tablename
+from db import (
+    PatientInfo,
+    DBName,
+    Room,
+    TableName,
+    tablename_to_class,
+    update_record_keys,
+    insert_record,
+)
 from utils import sidebar_logo
 from typing import List, Dict 
 
 class DashboardApp(HydraHeadApp):
-    def __init__(self, title = '', app_state = None , db: DatabaseManager= None, **kwargs):
+    def __init__(self, title = '', app_state = None , db = None, **kwargs):
         self.__dict__.update(kwargs)
-        self.db = db
         self.room_data = {"name": ""}
         self.room_idx_selected = None
         self.rooms = []
@@ -17,7 +24,12 @@ class DashboardApp(HydraHeadApp):
             self.user = app_state.username
             self.clinic = app_state.clinic
             self.login = True 
+            self.patients_db = db.get('patients', [])            
+            self.rooms_db = db.get('rooms', [])            
             print(f"Dashboard login: {self.login}")
+            print(f"Loaded {len(self.patients_db)} patients")
+            print(f"Loaded {len(self.rooms_db)} rooms")
+            
         else:
             self.login = False
             print(f"Dashboard login: {False}")
@@ -55,9 +67,9 @@ class DashboardApp(HydraHeadApp):
             }
         '''
         if data is not None:
-            event_type: str = event_data.get("type", None)
-            event_data: dict = event_data.get("data", None)
-            rowIdx: int = event_data.get("rowIndex", None)
+            event_type: str = data.get("type", None)
+            event_data: dict = data.get("data", None)
+            rowIdx: int = data.get("rowIndex", None)
             
     def _tab_patients(self):
         col1, col2, col3 = st.columns([1, 1, 1])
@@ -78,8 +90,9 @@ class DashboardApp(HydraHeadApp):
 
         st.markdown("***")
         ## UI Patient List
-        patients_db: List = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])        
-        patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
+        # patients_db: List = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])        
+        # patients_db: List = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])        
+        patients_df = pd.DataFrame(self.patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
 
         gb = GridOptionsBuilder.from_dataframe(patients_df)
 
@@ -127,19 +140,22 @@ class DashboardApp(HydraHeadApp):
         return None
     
     def _btn_edit_room_func(self, txt_edit_room):
-        table_name = dataclass_to_tablename[Room]
+        table_name = TableName.ROOM.value
+        db_name = DBName.PATIENT.value
         keys = tuple(Room.__annotations__.keys())
         values = (txt_edit_room)
-        self.db.update_record_keys(table_name, keys, values, id=self.account_idx_selected)
+        update_record_keys(db_name, table_name, keys, values, id=self.account_idx_selected)
         st.toast("Room edited successfully!")
 
     def _btn_add_room_func(self, txt_add_room):
-        self.db.insert_record(Room, values=(txt_add_room))
+        table_name = TableName.ROOM.value
+        db_name = DBName.PATIENT.value
+        insert_record(db_name, table_name, values=(txt_add_room))
         st.toast("Account added successfully!")
         st.toast("Room edited successfully!")
 
-    def _load_patients_db(self):
-        patients_db: List = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])        
+    def _get_patients_df(self):
+        patients_db: List = self.patients_db
         patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
         return patients_df
 
@@ -180,11 +196,11 @@ class DashboardApp(HydraHeadApp):
         return room_list
     
     def _tab_room(self):
-        room_db: List = self.db.fetch_all_records(dataclass_to_tablename[Room]) 
+        # room_db: List = self.db.fetch_all_records(dataclass_to_tablename[Room]) 
         self.rooms = [
-            room[1] for room in room_db
+            room[1] for room in self.rooms_db
         ]
-        patients_df: pd.DataFrame = self._load_patients_db()
+        patients_df: pd.DataFrame = self._get_patients_df()
         patients: List[Dict] = patients_df.to_dict(orient="records")
         self.room_data: Dict = self._make_room_data(patients)
         self.room_list: List = self._room_dict_to_list(self.room_data)
@@ -192,7 +208,7 @@ class DashboardApp(HydraHeadApp):
         col1, col2 = st.columns([1, 1])
         with col1:
             
-            rooms_df = pd.DataFrame(room_db, columns=['id'] + list(Room.__annotations__.keys()))
+            rooms_df = pd.DataFrame(self.rooms_db, columns=['id'] + list(Room.__annotations__.keys()))
             grid_return = AgGrid(
                 rooms_df, 
                 update_on=["cellClicked"],
@@ -204,7 +220,7 @@ class DashboardApp(HydraHeadApp):
                 if _room is not None:
                     self.room_idx_selected = _room.get("id", None)
                     for k,v in self.room_data.items():
-                        self.room_data[k] = _room[k]
+                        self.room_data[k] = _room.get('name', '')
         with col2:
             with st.form("Edit Room", border=False):
                 txt_edit_room = st.text_input(" ", value=self.room_data.get('name', ''), key='edit_room')
@@ -235,14 +251,20 @@ class DashboardApp(HydraHeadApp):
                     idx += 1
 
 if __name__ == "__main__":
-    # db = DatabaseManager("PK2_patient")
     from dataclasses import dataclass
-    db_manager = DatabaseManager("PK2_patient.db")
-    db_manager.create_default_table_patient()
+    from db import read_db, create_default_db_patient
     @dataclass 
     class AppState:
         username: str
         clinic: str
-    app_state = AppState(username="John", clinic="Clinic1")
-    patient = DashboardApp(title="Dashboard", db=db_manager, app_state=app_state)
+    app_state = AppState(username="huynh", clinic="PK2")
+    db_name = f"PK2_patient.db"
+    create_default_db_patient(db_name)
+    db_patients = read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
+    db_rooms = read_db(db_name=db_name, table_name=TableName.ROOM.value)
+    db = {
+        'patients': db_patients,
+        'rooms': db_rooms
+    }    
+    patient = DashboardApp(title="Dashboard", db=db, app_state=app_state)
     patient.run()

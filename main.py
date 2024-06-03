@@ -3,18 +3,24 @@ import streamlit as st
 import apps
 import apps.account_app
 import apps.dashboard_app
-from db import TableName
-from utils import read_db
+from db import (
+    TableName, 
+    create_default_db_account, 
+    create_default_db_patient, 
+    read_db
+)
 
 if __name__ == '__main__':
     ## database 
-    if not 'loaded_db' in st.session_state:
+    if not 'loaded_account_db' in st.session_state:
         print(f"Start loading database account.db")
-        db_account = read_db(db_name="account.db", db_table=TableName.SINGUPUSER.value)
+        db_name = 'account_db'
+        create_default_db_account(db_name)
+        db_account = read_db(db_name=db_name, table_name=TableName.SINGUPUSER.value)
         print(f"Successfully loading database account.db")
-        st.session_state.loaded_db = db_account
+        st.session_state.loaded_account_db = db_account
     else:
-        db_account = st.session_state.loaded_db
+        db_account = st.session_state.loaded_account_db
     over_theme = {'txc_inactive': '#FFFFFF'}
 
     #this is the host application, we add children to it and that's it!
@@ -66,16 +72,23 @@ if __name__ == '__main__':
     else:
         clinic = app.session_state.clinic
         if clinic is not None:
-            if not 'loaded_patient_db' in st.session_state:
-                print(f"Start loading database {clinic}_patient.db")
-                db_patients = read_db(db_name=f"{clinic}_patient.db", db_table=TableName.PATIENTINFO.value)
-                print(f"Successfully loading database {clinic}_patient.db")
-                st.session_state.loaded_patient_db = db_patients
+            if not 'loaded_db' in st.session_state:
+                db_name = f"{clinic}_patient.db"
+                print(f"Start loading database {db_name}")
+                create_default_db_patient(db_name)
+                db_patients = read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
+                db_rooms = read_db(db_name=db_name, table_name=TableName.ROOM.value)
+                db = {
+                    'patients': db_patients,
+                    'rooms': db_rooms
+                }
+                print(f"Successfully loading database {db_name}")
+                st.session_state.loaded_db = db 
             else:
-                db_patients = st.session_state.loaded_patient_db
+                db = st.session_state.loaded_db
             db_manager = "PK2_patient.db"
-            app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=db_patients, app_state=app.session_state))
-            app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(db=db_patients, app_state=app.session_state))            
+            app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=db, app_state=app.session_state))
+            app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(db=db, app_state=app.session_state))            
         else:
             st.warning("No clinic selected")
 
@@ -91,8 +104,7 @@ if __name__ == '__main__':
     # completely optional, but if you have too many entries, you can make it nicer by using accordian menus
     if user_access_level == 1:
         complex_nav = {
-            # 'Home': ['Home'],
-            # 'Dashboard': ['Dashboard'],
+            'Dashboard': ['Dashboard'],
             'Receive': ['Receive'],
             'Account': ['Account'],
             

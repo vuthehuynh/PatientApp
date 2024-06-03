@@ -146,7 +146,15 @@ class AccountApp(HydraHeadApp):
         return clinics
     
 if __name__ == "__main__":
-    db_manager = DatabaseManager("my_database.db")
-    db_manager.create_default_table()
-    account = AccountApp(title="Account", db=db_manager)
-    account.run()
+    from dataclasses import dataclass
+    from db import read_db, create_default_db_account
+    @dataclass 
+    class AppState:
+        username: str
+        clinic: str
+    app_state = AppState(username="huynh", clinic="PK2")
+    db_name = 'account_db'
+    create_default_db_account(db_name)
+    db_account = read_db(db_name=db_name, table_name=TableName.SINGUPUSER.value)  
+    patient = AccountApp(title="Account", db=db_account, app_state=app_state)
+    patient.run()

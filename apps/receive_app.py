@@ -19,7 +19,6 @@ class ReceiveApp(HydraHeadApp):
     def __init__(self, title = '', db = None, app_state = None, **kwargs):
         self.__dict__.update(kwargs)
         self.title = title
-        self.db = db
         self.edited_data = defaultdict(dict)
         self.patient_idx_selected = None
         self.patient: Dict = self._init_patient(is_remove_idx=False)
@@ -28,7 +27,9 @@ class ReceiveApp(HydraHeadApp):
             self.clinic = app_state.clinic
             self.login = True 
             self.db_name = f"{self.clinic}_patient.db"
-            self.patients_db = db 
+            self.patients_db = db.get('patients', [])
+            print(f"Loaded {len(self.patients_db)} patients")
+
     def run(self):
         ## Side bar
         logo_url = './resources/logo.png'
@@ -227,4 +228,4 @@ if __name__ == "__main__":
     app_state = AppState(username="huynh", clinic="PK2")
     db_patients = read_db(db_name=f"{app_state.clinic}_patient.db", db_table=TableName.SINGUPUSER.value)
     patient = ReceiveApp(title="Receive", db=db_patients, app_state=app_state)
-
+    patient.run()
