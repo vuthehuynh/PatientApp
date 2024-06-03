@@ -2,7 +2,12 @@ import time
 from typing import Dict
 import streamlit as st
 from hydralit import HydraHeadApp
-from db import DatabaseManager, SingupUser, dataclass_to_tablename
+from db import (
+    SingupUser,
+    DBName,
+    TableName,
+    fetch_all_records
+)
 from utils import hash_password, set_background
 
 
@@ -13,10 +18,10 @@ class LoginApp(HydraHeadApp):
     
     """
 
-    def __init__(self, title = '', db: DatabaseManager=None, **kwargs):
+    def __init__(self, title = '', db =None, **kwargs):
         self.__dict__.update(kwargs)
         self.title = title
-        self.db = db
+        self.db_account = db
 
     def run(self) -> None:
         """
@@ -92,11 +97,11 @@ class LoginApp(HydraHeadApp):
 
 
     def _check_login(self, login_data) -> int:
-        table_name = dataclass_to_tablename[SingupUser]
-        data: list = self.db.fetch_all_records(table_name)
-        for data_item in data:
+        # db_name = DBName.ACCOUNT.value
+        # table_name = TableName.SINGUPUSER.value
+        # data: list = fetch_all_records(db_name, table_name)
+        for data_item in self.db_account:
             account: SingupUser = SingupUser(*data_item[1:])
-            # if account.username == login_data['username'] and account.password == hash_password(login_data['password']):
             if account.username == login_data['username'] and account.password == login_data['password']:
                 return account.access_level, account.clinic
         return 0, None

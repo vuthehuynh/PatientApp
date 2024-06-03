@@ -2,17 +2,26 @@ import streamlit as st
 
 from hydralit import HydraHeadApp
 import pandas as pd
-from db import DatabaseManager, Clinic, dataclass_to_tablename, SingupUser
+from db import (
+    SingupUser,
+    insert_record,
+    update_record_keys,
+    TableName,
+    DBName
+)
 from utils import sidebar_logo
 from st_aggrid import AgGrid
 
 class AccountApp(HydraHeadApp):
-    def __init__(self, title = '', db: DatabaseManager=None, **kwargs):
+    def __init__(self, title = '', db = None, **kwargs):
         self.__dict__.update(kwargs)
         self.title = title
-        self.db = db
+        self.accounts = db
         self.ss = st.session_state        
         self.account_idx_selected = None 
+        self.account_data = self._init_account_data()
+        self.clinics = self._load_clinics()
+        self.db_name = 'account.db'
 
     def run(self):
         ## UI Sidebar
@@ -30,17 +39,15 @@ class AccountApp(HydraHeadApp):
 
     def page_account_info(self):
         ## UI for account table 
-        if not hasattr(self, 'account_data'):
-            self.account_data = self._load_account_data()
-        self.clinics = self._load_clinics()
+        
+        # self.clinics = self._load_clinics()
         st.markdown("***")
         st.header('Accounts')
         UI_account = st.columns([1,1])
 
 
-        accounts = self.db.fetch_all_records('signup_users')
         with UI_account[0]:
-            account_df = pd.DataFrame(accounts, columns=['id', 'username', 'password', 'access_level', 'clinic'])
+            account_df = pd.DataFrame(self.accounts, columns=['id', 'username', 'password', 'access_level', 'clinic'])
             grid_return = AgGrid(
                 account_df, 
                 update_on=["cellClicked"],
@@ -69,10 +76,11 @@ class AccountApp(HydraHeadApp):
 
                     btn_submitted = st.form_submit_button("Edit Account")
                     if btn_submitted:
-                        table_name = dataclass_to_tablename[SingupUser]
                         keys = tuple(SingupUser.__annotations__.keys())
                         values = (txt_user_name, txt_password, txt_access_level, txt_clinic)
-                        self.db.update_record_keys(table_name, keys, values, id=self.account_idx_selected)
+                        db_name = DBName.ACCOUNT.value
+                        table_name = TableName.SINGUPUSER.value
+                        update_record_keys(db_name, table_name, keys, values, id=self.account_idx_selected)
                         st.toast("Account edited successfully!")
 
             with tab_add_account:
@@ -85,49 +93,46 @@ class AccountApp(HydraHeadApp):
                     btn_submitted = st.form_submit_button("Add Account")
                     if btn_submitted:
                         values = (txt_add_user_name, txt_add_password, txt_add_access_level, txt_add_clinic)
-                        self.db.insert_record(SingupUser, values=values)
+                        db_name = DBName.ACCOUNT.value
+                        table_name = TableName.SINGUPUSER.value
+                        insert_record(db_name, table_name, values=values)
                         st.toast("Account added successfully!")
 
         st.markdown("***")
 
     def page_db_statistics(self):
         ## Get list of clinics
-        self.clinics = self._load_clinics()
         st.markdown("***")
         
         ## View list of DB
         st.header('DB Statistics')
-        db_func = {}
-        for clinic in self.clinics:
-            if not hasattr(self, f'db_{clinic}'):
-                db_func[clinic] = DatabaseManager(f"{clinic}_manager.db")
+        # db_func = {}
+        # for clinic in self.clinics:
+        #     if not hasattr(self, f'db_{clinic}'):
+        #         db_func[clinic] = DatabaseManager(f"{clinic}_manager.db")
 
-        db_names = [f"{clinic}_manager.db" for clinic in self.clinics]
-        selected_db_name = st.selectbox("Clinic", options=db_names, index=0) 
+        # db_names = [f"{clinic}_manager.db" for clinic in self.clinics]
+        # selected_db_name = st.selectbox("Clinic", options=db_names, index=0) 
 
-        btn_statistics = st.button("Show Statistics")
-        if btn_statistics:
-            _db_name = selected_db_name.split("_")[0]
-            _db_func = db_func.get(_db_name, None)
-            if _db_func is not None:
-                tables = _db_func.get_table_names()
-                st.write(tables)
-            else:
-                st.error("DB not found!")
+        # btn_statistics = st.button("Show Statistics")
+        # if btn_statistics:
+        #     _db_name = selected_db_name.split("_")[0]
+        #     _db_func = db_func.get(_db_name, None)
+        #     if _db_func is not None:
+        #         tables = _db_func.get_table_names()
+        #         st.write(tables)
+        #     else:
+        #         st.error("DB not found!")
             
-    def _load_account_data(self):
+    def _init_account_data(self):
         singup_db = {}
-        users = self.db.fetch_all_records(dataclass_to_tablename[SingupUser])
-        users = [
-            account[1:] for account in users
-        ]
         keys = tuple(SingupUser.__annotations__.keys())
         for key in keys:
             singup_db[key] = ""
         return singup_db    
 
     def _load_clinics(self):
-        users = self.db.fetch_all_records(dataclass_to_tablename[SingupUser])
+        users = self.accounts
         users = [
             account[1:] for account in users
         ]
@@ -139,25 +144,7 @@ class AccountApp(HydraHeadApp):
                     clinics.append(value)
 
         return clinics
-
-    def _add_clinic(self, txt_clinic):
-        clinic_name = txt_clinic
-        if clinic_name:
-            self.db.insert_record(Clinic, values=(clinic_name))
-            st.toast(f'Clinic {clinic_name} added successfully!')
-
-    def _account_edit(self):
-        edited_rows = st.session_state.ed["edited_rows"]
-        if edited_rows is not None:
-            for row_id, data in edited_rows.items():
-                keys = list(data.keys())
-                values = list(data.values())
-                st.write(f"edited row: {row_id} keys {keys} values {values}")   
-                self.edited_data[row_id] = [keys, values]
-
-
-
-
+    
 if __name__ == "__main__":
     db_manager = DatabaseManager("my_database.db")
     db_manager.create_default_table()

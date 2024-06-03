@@ -1,7 +1,7 @@
 import sqlite3
 from dataclasses import dataclass
 from typing import Tuple, Union
-
+from enum import Enum
 # Define data classes for tables
 @dataclass
 class SingupUser:
@@ -32,159 +32,200 @@ dataclass_to_tablename = {
     Room: "room"
 }
 
-# Database connection and utility functions
-class DatabaseManager:
-    def __init__(self, db_name):
-        self.conn = sqlite3.connect(db_name)
-        self.cursor = self.conn.cursor()
+class TableName(str, Enum):
+    SINGUPUSER = "signup_users"
+    PATIENTINFO = "patient_info"
+    CLINIC = "clinic"
+    ROOM = "room"
 
-    def create_table(self, table_name, columns):
-        columns_str = ", ".join(columns)
-        query = f"CREATE TABLE IF NOT EXISTS {table_name} ({columns_str})"
-        self.cursor.execute(query)
+class DBName(str, Enum):
+    ACCOUNT = "account.db"
+    PATIENT = "patient.db"
 
-    def insert_record(self, data_class: dataclass, values: Union[str, Tuple]):
-        table_name = dataclass_to_tablename[data_class]
-        keys = tuple(data_class.__annotations__.keys())
-        if len(keys) == 1:
-            keys = str(keys).replace(",", "")
-        if isinstance(values, str):
-            values = f"('{values}')"
-        query = f"INSERT INTO {table_name} {keys} VALUES {values}"
-        print(query)
-        self.cursor.execute(query)
-        self.conn.commit()
+tablename_to_class = {
+    TableName.SINGUPUSER: SingupUser,
+    TableName.PATIENTINFO: PatientInfo,
+    TableName.CLINIC: Clinic,
+    TableName.ROOM: Room
+}
 
-    def get_table_names(self):
-        query = f"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
-        self.cursor.execute(query)
-        t_names = self.cursor.fetchall()
-        t_names = [
-            i[0] for i in t_names
-        ]
-        return t_names
+def create_table(db_name, table_name, columns):
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    columns_str = ", ".join(columns)
+    query = f"CREATE TABLE IF NOT EXISTS {table_name} ({columns_str})"
+    cursor.execute(query)
+    conn.close()
 
-    def get_table_numentry(self, table_name):
-        query = f"SELECT COUNT(*) FROM {table_name};"
-        self.cursor.execute(query)
-        count = self.cursor.fetchone()[0]
-        return count
+def insert_record(db_name, data_class: dataclass, values: Union[str, Tuple]):
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
 
-    def update_record(self, table_name, data_class: dataclass, values, id: int = None):
-        '''
-        e.g. update_record("signup_users", SingupUser, ("john_doe1", "password12345", 1), 1)
-        '''
-        keys = tuple(data_class.__annotations__.keys())
-        ## generate query UPDATE table_name SET column1 = value1, column2 = value2...., columnN = valueN WHERE [condition]; from keys and values 
-        pairs = []
-        for key, value in zip(keys, values):
-            if isinstance(value, str):
-                pairs.append(f"{key} = '{value}'")
-            else:
-                pairs.append(f"{key} = {value}")
-        pairs = ", ".join(pairs)
-        query = f"UPDATE {table_name} SET {pairs} WHERE id = {id}"
-        self.cursor.execute(query)
-        self.conn.commit()
+    table_name = dataclass_to_tablename[data_class]
+    keys = tuple(data_class.__annotations__.keys())
+    if len(keys) == 1:
+        keys = str(keys).replace(",", "")
+    if isinstance(values, str):
+        values = f"('{values}')"
+    query = f"INSERT INTO {table_name} {keys} VALUES {values}"
+    cursor.execute(query)
+    conn.commit()
 
-    def delete_records(self, data_class: dataclass, ids: list = []):
-        '''
-        e.g. update_record("signup_users", SingupUser, ("john_doe1", "password12345", 1), 1)
-        '''
-        table_name = dataclass_to_tablename[data_class]
-        if len(ids) == 1:
-            ids_to_delete_str = str(ids[0])
+    conn.close()
+
+def get_table_names(db_name):
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+
+    query = f"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
+    cursor.execute(query)
+    t_names = cursor.fetchall()
+    t_names = [
+        i[0] for i in t_names
+    ]
+    conn.close()
+    return t_names
+
+def get_table_numentry(db_name, table_name):
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()    
+
+    query = f"SELECT COUNT(*) FROM {table_name};"
+    cursor.execute(query)
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
+
+def update_record(db_name, table_name, data_class: dataclass, values, id: int = None):
+    '''
+    e.g. update_record("signup_users", SingupUser, ("john_doe1", "password12345", 1), 1)
+    '''
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()    
+    keys = tuple(data_class.__annotations__.keys())
+    ## generate query UPDATE table_name SET column1 = value1, column2 = value2...., columnN = valueN WHERE [condition]; from keys and values 
+    pairs = []
+    for key, value in zip(keys, values):
+        if isinstance(value, str):
+            pairs.append(f"{key} = '{value}'")
         else:
-            ids_to_delete_str = ', '.join(str(_) for _ in ids)
-        query = f"DELETE from {table_name} WHERE id IN ({ids_to_delete_str})"
-        self.cursor.execute(query)
-        self.conn.commit()
+            pairs.append(f"{key} = {value}")
+    pairs = ", ".join(pairs)
+    query = f"UPDATE {table_name} SET {pairs} WHERE id = {id}"
+    cursor.execute(query)
+    conn.commit()
+    conn.close()
 
-    def update_record_keys(self, table_name, keys, values, id: int = None):
-        '''
-        Update record with keys and values
-        '''
-        pairs = []
-        for key, value in zip(keys, values):
-            if isinstance(value, str):
-                pairs.append(f"{key} = '{value}'")
-            else:
-                pairs.append(f"{key} = {value}")
-        pairs = ", ".join(pairs)
-        query = f"UPDATE {table_name} SET {pairs} WHERE id = {id}"
-        self.cursor.execute(query)
-        self.conn.commit()
+def delete_records(db_name, data_class: dataclass, ids: list = []):
+    '''
+    e.g. update_record("signup_users", SingupUser, ("john_doe1", "password12345", 1), 1)
+    '''
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()    
+    table_name = dataclass_to_tablename[data_class]
+    if len(ids) == 1:
+        ids_to_delete_str = str(ids[0])
+    else:
+        ids_to_delete_str = ', '.join(str(_) for _ in ids)
+    query = f"DELETE from {table_name} WHERE id IN ({ids_to_delete_str})"
+    cursor.execute(query)
+    conn.commit()
+    conn.close()
 
-    def fetch_all_records(self, table_name) -> list:
-        query = f"SELECT * FROM {table_name}"
-        self.cursor.execute(query)
-        return self.cursor.fetchall()
+def update_record_keys(db_name, table_name, keys, values, id: int = None):
+    '''
+    Update record with keys and values
+    '''
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()    
+    pairs = []
+    for key, value in zip(keys, values):
+        if isinstance(value, str):
+            pairs.append(f"{key} = '{value}'")
+        else:
+            pairs.append(f"{key} = {value}")
+    pairs = ", ".join(pairs)
+    query = f"UPDATE {table_name} SET {pairs} WHERE id = {id}"
+    cursor.execute(query)
+    conn.commit()
+    conn.close()
 
-    def close_connection(self):
-        self.conn.close()
+def fetch_all_records(db_name, table_name) -> list:
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()    
+    query = f"SELECT * FROM {table_name}"
+    cursor.execute(query)
+    records = cursor.fetchall()
+    conn.close()
+    return records
 
-    def create_default_table_account(self):
-        # Table signup_users
-        table_name = dataclass_to_tablename[SingupUser]
-        table_fields = [
-            "id INTEGER PRIMARY KEY", 
-            "username TEXT", 
-            "password TEXT",
-            "access_level INTEGER NOT NULL",
-            "clinic TEXT"
-        ]
-        self.create_table(table_name, table_fields)
 
-    def create_default_table_patient(self):
-        # Table patient_info
-        table_fields = [
-            "id INTEGER PRIMARY KEY", 
-            "room TEXT", 
-            "bed TEXT", 
-            "city TEXT", 
-            "district TEXT"
-        ]
-        self.create_table(dataclass_to_tablename[PatientInfo], table_fields)
-
-        table_fields = [
-            "id INTEGER PRIMARY KEY", 
-            "name TEXT", 
-        ]
-        self.create_table(dataclass_to_tablename[Room], table_fields)
-
-# Usage example
-if __name__ == "__main__":
-    db_manager = DatabaseManager("test.db")
-    db_manager.create_default_table()
-
-    # Create tables
-    table_name = "signup_users"
+def create_default_table_account(db_name, table_name):
+    # Table signup_users
+    conn = sqlite3.connect(db_name)
     table_fields = [
         "id INTEGER PRIMARY KEY", 
         "username TEXT", 
         "password TEXT",
-        "access_level INTEGER NOT NULL"
+        "access_level INTEGER NOT NULL",
+        "clinic TEXT"
     ]
-    db_manager.create_table(table_name, table_fields)
+    create_table(db_name, table_name, table_fields)
+    conn.close()
 
-    # Insert records without specifying the id column
-    # values = ("john_doe", "password123", 1)
-    # db_manager.insert_record(SingupUser, values)
-    # values = ("huynh", "password13", 2)
-    # db_manager.insert_record(SingupUser, values)
+def create_default_table_patient(db_name, table_name):
+    conn = sqlite3.connect(db_name)
+    # Table patient_info
+    table_fields = [
+        "id INTEGER PRIMARY KEY", 
+        "room TEXT", 
+        "bed TEXT", 
+        "city TEXT", 
+        "district TEXT"
+    ]
+    create_table(db_name, table_name, table_fields)
 
-    # Update records
-    db_manager.update_record(table_name, SingupUser, ("john_doe1", "password12345", 1), 1)
+    table_fields = [
+        "id INTEGER PRIMARY KEY", 
+        "name TEXT", 
+    ]
+    create_table(dataclass_to_tablename[Room], table_fields)
+    conn.close()
 
-    # Fetch records
-    users = db_manager.fetch_all_records(table_name)
+# Usage example
+if __name__ == "__main__":
+    pass 
+    # db_manager = DatabaseManager("test.db")
+    # db_manager.create_default_table()
 
-    print("Signup Users:")
-    for user in users:
-        types = []
-        for i in user:
-            types.append(type(i))
-        print(user, types)
+    # # Create tables
+    # table_name = "signup_users"
+    # table_fields = [
+    #     "id INTEGER PRIMARY KEY", 
+    #     "username TEXT", 
+    #     "password TEXT",
+    #     "access_level INTEGER NOT NULL"
+    # ]
+    # db_manager.create_table(table_name, table_fields)
 
-    # Close connection
-    db_manager.close_connection()
+    # # Insert records without specifying the id column
+    # # values = ("john_doe", "password123", 1)
+    # # db_manager.insert_record(SingupUser, values)
+    # # values = ("huynh", "password13", 2)
+    # # db_manager.insert_record(SingupUser, values)
+
+    # # Update records
+    # db_manager.update_record(table_name, SingupUser, ("john_doe1", "password12345", 1), 1)
+
+    # # Fetch records
+    # users = db_manager.fetch_all_records(table_name)
+
+    # print("Signup Users:")
+    # for user in users:
+    #     types = []
+    #     for i in user:
+    #         types.append(type(i))
+    #     print(user, types)
+
+    # # Close connection
+    # db_manager.close_connection()
