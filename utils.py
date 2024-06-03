@@ -1,8 +1,15 @@
 import hashlib
 import base64
 import streamlit as st
-from db import DatabaseManager, dataclass_to_tablename, PatientInfo
+from db import PatientInfo
 from typing import List
+from db import fetch_all_records
+
+
+def load_data(db_name, db_table):
+    print("Hello")
+    data = fetch_all_records(db_name, db_table)
+    return data
 
 def hash_password(password):
     # Convert the password to bytes before hashing

@@ -3,14 +3,20 @@ import streamlit as st
 import apps
 import apps.account_app
 import apps.dashboard_app
-from db import DatabaseManager
+from db import TableName
+from utils import load_data
 
 if __name__ == '__main__':
     ## database 
-    db_account = DatabaseManager("account.db")
-    db_account.create_default_table_account()    
-
+    if not 'loaded_db' in st.session_state:
+        print(f"Start loading database account.db")
+        db_account = load_data(db_name="account.db", db_table=TableName.SINGUPUSER.value)
+        print(f"Successfully loading database account.db")
+        st.session_state.loaded_db = db_account
+    else:
+        db_account = st.session_state.loaded_db
     over_theme = {'txc_inactive': '#FFFFFF'}
+
     #this is the host application, we add children to it and that's it!
     app = HydraApp(
         title='Secure Hydralit Data Explorer',
@@ -21,7 +27,7 @@ if __name__ == '__main__':
         banner_spacing=[5,30,60,30,5],
         # use_navbar=True, 
         navbar_sticky=False,
-        navbar_theme=over_theme
+        navbar_theme=over_theme,
     )
 
     #Home button will be in the middle of the nav list now
@@ -43,9 +49,7 @@ if __name__ == '__main__':
     #we can inject a method to be called everytime a user logs out
     @app.logout_callback
     def mylogout_cb():
-        db_account.close_connection()
         print('I was called from Hydralit at logout!')
-        db_manager.close_connection()
         st.session_state.login = False
 
     #we can inject a method to be called everytime a user logs in
@@ -62,9 +66,9 @@ if __name__ == '__main__':
     else:
         clinic = app.session_state.clinic
         if clinic is not None:
-            db_manager = DatabaseManager(f"{clinic}_patient.db")
-            db_manager.create_default_table_patient()
-
+            # db_manager = DatabaseManager(f"{clinic}_patient.db")
+            # db_manager.create_default_table_patient()
+            db_manager = "PK2_patient.db"
             app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=db_manager))
             app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(db=db_manager, app_state=app.session_state))            
         else:
@@ -83,8 +87,8 @@ if __name__ == '__main__':
     if user_access_level == 1:
         complex_nav = {
             # 'Home': ['Home'],
-            'Dashboard': ['Dashboard'],
-            'Receive': ['Receive'],
+            # 'Dashboard': ['Dashboard'],
+            # 'Receive': ['Receive'],
             'Account': ['Account'],
             
         }
@@ -99,9 +103,9 @@ if __name__ == '__main__':
     app.run(complex_nav)
 
     # db_manager.close_connection()
-    db_account.close_connection()
-    if 'login' in st.session_state:
-        db_manager.close_connection()
+    # db_account.close_connection()
+    # if 'login' in st.session_state:
+    #     db_manager.close_connection()
 
     # #(DEBUG) print user movements and current login details used by Hydralit
     # #---------------------------------------------------------------------
