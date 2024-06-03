@@ -9,12 +9,14 @@ from db import (
     create_default_db_patient, 
     read_db
 )
+from utils import Container
+
 
 if __name__ == '__main__':
     ## database 
     if not 'loaded_account_db' in st.session_state:
         print(f"Start loading database account.db")
-        db_name = 'account_db'
+        db_name = 'account.db'
         create_default_db_account(db_name)
         db_account = read_db(db_name=db_name, table_name=TableName.SINGUPUSER.value)
         print(f"Successfully loading database account.db")
@@ -72,23 +74,30 @@ if __name__ == '__main__':
     else:
         clinic = app.session_state.clinic
         if clinic is not None:
-            if not 'loaded_db' in st.session_state:
+            if not 'loaded_db' in app.session_state:
                 db_name = f"{clinic}_patient.db"
+                
                 print(f"Start loading database {db_name}")
                 create_default_db_patient(db_name)
                 db_patients = read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
                 db_rooms = read_db(db_name=db_name, table_name=TableName.ROOM.value)
-                db = {
-                    'patients': db_patients,
-                    'rooms': db_rooms
-                }
+                # db = {
+                #     'patients': db_patients,
+                #     'rooms': db_rooms,
+                #     'test': 1
+                # }
+                container = Container(
+                    patients=db_patients,
+                    rooms=db_rooms
+                )
                 print(f"Successfully loading database {db_name}")
-                st.session_state.loaded_db = db 
+                app.session_state.loaded_db = container 
+
             else:
-                db = st.session_state.loaded_db
+                container = app.session_state.loaded_db
             db_manager = "PK2_patient.db"
-            app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=db, app_state=app.session_state))
-            app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(db=db, app_state=app.session_state))            
+            app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=container, app_state=app.session_state))
+            app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(db=container, app_state=app.session_state))            
         else:
             st.warning("No clinic selected")
 

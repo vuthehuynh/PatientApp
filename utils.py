@@ -5,6 +5,10 @@ from db import PatientInfo
 from typing import List
 from db import fetch_all_records
 
+class Container:
+    def __init__(self, patients, rooms):
+        self.patients = patients
+        self.rooms = rooms
 
 def hash_password(password):
     # Convert the password to bytes before hashing

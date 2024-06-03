@@ -13,34 +13,35 @@ from db import (
 )
 from utils import sidebar_logo
 from typing import List, Dict 
-
+from utils import Container
 class DashboardApp(HydraHeadApp):
-    def __init__(self, title = '', app_state = None , db = None, **kwargs):
+    def __init__(self, title = '', app_state = None , db:Container = None, **kwargs):
         self.__dict__.update(kwargs)
         self.room_data = {"name": ""}
         self.room_idx_selected = None
-        self.rooms = []
         if app_state is not None:
             self.user = app_state.username
             self.clinic = app_state.clinic
             self.login = True 
-            self.patients_db = db.get('patients', [])            
-            self.rooms_db = db.get('rooms', [])            
+            self.db: Container = db
+
+            self.rooms = [
+                room[1] for room in self.db.rooms
+            ]
+
             print(f"Dashboard login: {self.login}")
-            print(f"Loaded {len(self.patients_db)} patients")
-            print(f"Loaded {len(self.rooms_db)} rooms")
-            
+            print(f"Loaded {len(self.db.patients)} patients")
+            print(f"Loaded {len(self.db.rooms)} rooms")            
         else:
             self.login = False
             print(f"Dashboard login: {False}")
-
     def run(self):
         ## Side bar
         logo_url = './resources/logo.png'
         sidebar_logo(logo_url)
         st.sidebar.markdown("***")
         st.sidebar.title(f"Welcome {self.user}")
-
+            
         # ## UI main page
         tab_room, tab_patients, tab_contact = st.tabs(["Room", "Patients", "Contact"])
         with tab_room:
@@ -92,7 +93,7 @@ class DashboardApp(HydraHeadApp):
         ## UI Patient List
         # patients_db: List = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])        
         # patients_db: List = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])        
-        patients_df = pd.DataFrame(self.patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
+        patients_df = pd.DataFrame(self.db.patients, columns=['id'] + list( PatientInfo.__annotations__.keys()))
 
         gb = GridOptionsBuilder.from_dataframe(patients_df)
 
@@ -155,7 +156,7 @@ class DashboardApp(HydraHeadApp):
         st.toast("Room edited successfully!")
 
     def _get_patients_df(self):
-        patients_db: List = self.patients_db
+        patients_db: List = self.db.patients
         patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
         return patients_df
 
@@ -197,10 +198,13 @@ class DashboardApp(HydraHeadApp):
     
     def _tab_room(self):
         # room_db: List = self.db.fetch_all_records(dataclass_to_tablename[Room]) 
-        self.rooms = [
-            room[1] for room in self.rooms_db
-        ]
-        patients_df: pd.DataFrame = self._get_patients_df()
+
+
+        patients_db: List = self.db.patients
+        patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
+
+        # patients_df: pd.DataFrame = self._get_patients_df()
+
         patients: List[Dict] = patients_df.to_dict(orient="records")
         self.room_data: Dict = self._make_room_data(patients)
         self.room_list: List = self._room_dict_to_list(self.room_data)
@@ -208,7 +212,7 @@ class DashboardApp(HydraHeadApp):
         col1, col2 = st.columns([1, 1])
         with col1:
             
-            rooms_df = pd.DataFrame(self.rooms_db, columns=['id'] + list(Room.__annotations__.keys()))
+            rooms_df = pd.DataFrame(self.db.rooms, columns=['id'] + list(Room.__annotations__.keys()))
             grid_return = AgGrid(
                 rooms_df, 
                 update_on=["cellClicked"],

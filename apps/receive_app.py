@@ -14,9 +14,9 @@ from utils import sidebar_logo
 from collections import defaultdict
 from st_aggrid import AgGrid, GridOptionsBuilder
 from typing import List, Dict
-
+from utils import Container
 class ReceiveApp(HydraHeadApp):
-    def __init__(self, title = '', db = None, app_state = None, **kwargs):
+    def __init__(self, title = '', db: Container = None, app_state = None, **kwargs):
         self.__dict__.update(kwargs)
         self.title = title
         self.edited_data = defaultdict(dict)
@@ -27,8 +27,8 @@ class ReceiveApp(HydraHeadApp):
             self.clinic = app_state.clinic
             self.login = True 
             self.db_name = f"{self.clinic}_patient.db"
-            self.patients_db = db.get('patients', [])
-            print(f"Loaded {len(self.patients_db)} patients")
+            self.db: Container = db
+            print(f"Loaded {len(self.db.patients)} patients")
 
     def run(self):
         ## Side bar
@@ -168,7 +168,7 @@ class ReceiveApp(HydraHeadApp):
 
         st.markdown("***")
         ## UI Patient List
-        patients_df = pd.DataFrame(self.patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
+        patients_df = pd.DataFrame(self.db.patients, columns=['id'] + list( PatientInfo.__annotations__.keys()))
 
         gb = GridOptionsBuilder.from_dataframe(patients_df)
         gb.configure_default_column(
