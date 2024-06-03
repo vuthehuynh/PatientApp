@@ -2,21 +2,33 @@ import streamlit as st
 from hydralit import HydraHeadApp
 import pandas as pd
 import datetime
-from db import DatabaseManager, PatientInfo, dataclass_to_tablename
+from db import (
+    PatientInfo,
+    DBName,
+    TableName,
+    tablename_to_class,
+    update_record_keys,
+    insert_record,
+)
 from utils import sidebar_logo
 from collections import defaultdict
 from st_aggrid import AgGrid, GridOptionsBuilder
 from typing import List, Dict
 
 class ReceiveApp(HydraHeadApp):
-    def __init__(self, title = '', db: DatabaseManager=None, **kwargs):
+    def __init__(self, title = '', db = None, app_state = None, **kwargs):
         self.__dict__.update(kwargs)
         self.title = title
         self.db = db
         self.edited_data = defaultdict(dict)
         self.patient_idx_selected = None
         self.patient: Dict = self._init_patient(is_remove_idx=False)
-
+        if app_state is not None:
+            self.user = app_state.username
+            self.clinic = app_state.clinic
+            self.login = True 
+            self.db_name = f"{self.clinic}_patient.db"
+            self.patients_db = db 
     def run(self):
         ## Side bar
         logo_url = './resources/logo.png'
@@ -58,10 +70,11 @@ class ReceiveApp(HydraHeadApp):
         print(f"Saving data {self.edited_data}")
         for row_id, data in self.edited_data.items():
             keys, values = data
-            table_name = dataclass_to_tablename[PatientInfo]
+            table_name = TableName.PATIENT_INFO.value
+            
             try:
                 print(f"Saving data: {keys} {values} {row_id}")
-                self.db.update_record_keys(table_name, keys, values, id=row_id)
+                update_record_keys(self.db_name, table_name, keys, values, id=row_id)
                 st.success("Data saved")
             except Exception as e:
                 st.error(f"Error saving db: {e}")
@@ -118,7 +131,8 @@ class ReceiveApp(HydraHeadApp):
                 )
                 values = ('', '', patient_info.city, patient_info.district)
                 try:
-                    self.db.insert_record(PatientInfo, values)
+                    table_name = TableName.PATIENTINFO.value
+                    insert_record(self.db_name, table_name, values)
                     st.success("Data saved to DB")
                 except Exception as e:
                     st.error(f"Error saving db: {e}")
@@ -126,7 +140,8 @@ class ReceiveApp(HydraHeadApp):
 
     def _btn_delete_selected(self):
         if self.selected_ids is not None:
-            self.db.delete_records(PatientInfo, ids=self.selected_ids)
+            table_name = TableName.PATIENTINFO.value
+            self.db.delete_records(self.db_name, table_name, ids=self.selected_ids)
             st.success("Deleted successfully")
         else:
             st.warning("No row selected")
@@ -152,8 +167,7 @@ class ReceiveApp(HydraHeadApp):
 
         st.markdown("***")
         ## UI Patient List
-        patients_db: List = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])        
-        patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
+        patients_df = pd.DataFrame(self.patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
 
         gb = GridOptionsBuilder.from_dataframe(patients_df)
         gb.configure_default_column(
@@ -204,9 +218,13 @@ class ReceiveApp(HydraHeadApp):
         return None
 
 if __name__ == "__main__":
-    # db = DatabaseManager("PK2_patient")
-    db_manager = DatabaseManager("PK2_patient.db")
-    db_manager.create_default_table_patient()
-    patient = ReceiveApp(title="Account", db=db_manager)
-    patient.run()
+    from dataclasses import dataclass
+    from utils import read_db
+    @dataclass 
+    class AppState:
+        username: str
+        clinic: str
+    app_state = AppState(username="huynh", clinic="PK2")
+    db_patients = read_db(db_name=f"{app_state.clinic}_patient.db", db_table=TableName.SINGUPUSER.value)
+    patient = ReceiveApp(title="Receive", db=db_patients, app_state=app_state)
 

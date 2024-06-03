@@ -6,8 +6,7 @@ from typing import List
 from db import fetch_all_records
 
 
-def load_data(db_name, db_table):
-    print("Hello")
+def read_db(db_name, db_table):
     data = fetch_all_records(db_name, db_table)
     return data
 

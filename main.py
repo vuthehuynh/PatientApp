@@ -4,13 +4,13 @@ import apps
 import apps.account_app
 import apps.dashboard_app
 from db import TableName
-from utils import load_data
+from utils import read_db
 
 if __name__ == '__main__':
     ## database 
     if not 'loaded_db' in st.session_state:
         print(f"Start loading database account.db")
-        db_account = load_data(db_name="account.db", db_table=TableName.SINGUPUSER.value)
+        db_account = read_db(db_name="account.db", db_table=TableName.SINGUPUSER.value)
         print(f"Successfully loading database account.db")
         st.session_state.loaded_db = db_account
     else:
@@ -66,11 +66,16 @@ if __name__ == '__main__':
     else:
         clinic = app.session_state.clinic
         if clinic is not None:
-            # db_manager = DatabaseManager(f"{clinic}_patient.db")
-            # db_manager.create_default_table_patient()
+            if not 'loaded_patient_db' in st.session_state:
+                print(f"Start loading database {clinic}_patient.db")
+                db_patients = read_db(db_name=f"{clinic}_patient.db", db_table=TableName.PATIENTINFO.value)
+                print(f"Successfully loading database {clinic}_patient.db")
+                st.session_state.loaded_patient_db = db_patients
+            else:
+                db_patients = st.session_state.loaded_patient_db
             db_manager = "PK2_patient.db"
-            app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=db_manager))
-            app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(db=db_manager, app_state=app.session_state))            
+            app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=db_patients, app_state=app.session_state))
+            app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(db=db_patients, app_state=app.session_state))            
         else:
             st.warning("No clinic selected")
 
@@ -88,7 +93,7 @@ if __name__ == '__main__':
         complex_nav = {
             # 'Home': ['Home'],
             # 'Dashboard': ['Dashboard'],
-            # 'Receive': ['Receive'],
+            'Receive': ['Receive'],
             'Account': ['Account'],
             
         }
