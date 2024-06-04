@@ -10,7 +10,7 @@ from db import (
     DBName
 )
 from utils import sidebar_logo
-from st_aggrid import AgGrid
+from st_aggrid import AgGrid, GridOptionsBuilder
 
 class AccountApp(HydraHeadApp):
     def __init__(self, title = '', db = None, **kwargs):
@@ -48,8 +48,12 @@ class AccountApp(HydraHeadApp):
 
         with UI_account[0]:
             account_df = pd.DataFrame(self.accounts, columns=['id', 'username', 'password', 'access_level', 'clinic'])
+            gd = GridOptionsBuilder().from_dataframe(account_df)
+            gd.configure_column('id', hide=True)
+            go = gd.build()
             grid_return = AgGrid(
                 account_df, 
+                gridOptions=go,
                 update_on=["cellClicked"],
                 fit_columns_on_grid_load=True
                 )

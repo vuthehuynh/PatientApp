@@ -99,7 +99,7 @@ class DashboardApp(HydraHeadApp):
             columns=['id'] + list( PatientInfo.__annotations__.keys())
         )
         gb = GridOptionsBuilder.from_dataframe(patients_df)
-
+        gb.configure_column("id", hide=True)
         gb.configure_column(
             "room",
             cellEditor='agSelectCellEditor', 
@@ -214,8 +214,12 @@ class DashboardApp(HydraHeadApp):
     def UI_sidebar(self):
         with st.sidebar:
             rooms_df = pd.DataFrame(self.db.rooms, columns=['id'] + list(Room.__annotations__.keys()))
+            gb = GridOptionsBuilder.from_dataframe(rooms_df)
+            gb.configure_column("id", hide=True)
+            gridOptions = gb.build()
             grid_return = AgGrid(
                 rooms_df, 
+                gridOptions=gridOptions,
                 update_on=["cellClicked"],
                 fit_columns_on_grid_load=True,
                 height=180
@@ -266,6 +270,7 @@ class DashboardApp(HydraHeadApp):
                             columns=['id'] + list( PatientInfo.__annotations__.keys())
                         )
                         gd = GridOptionsBuilder().from_dataframe(self.patient_df[idx])
+                        gd.configure_column('id', hide=True)
                         go = gd.build()
                         self.grid_return[idx] = AgGrid(
                             self.patient_df[idx], 

@@ -171,6 +171,7 @@ class ReceiveApp(HydraHeadApp):
         patients_df = pd.DataFrame(self.db.patients, columns=['id'] + list( PatientInfo.__annotations__.keys()))
 
         gb = GridOptionsBuilder.from_dataframe(patients_df)
+        # gb.configure_column("id", hide=True)
         gb.configure_default_column(
             groupable=True, value=True, enableRowGroup=True, aggFunc="sum", editable=False
         )
