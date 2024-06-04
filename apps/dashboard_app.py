@@ -75,7 +75,7 @@ class DashboardApp(HydraHeadApp):
                 self.db.patients[rowIdx] = tuple(converted_data.values())
             ## TODO write to db
 
-    def _tab_patients(self):
+    def UI_patients_editor(self):
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:    
             n_rows = st.number_input("rows", min_value=10, value=30)
@@ -111,13 +111,14 @@ class DashboardApp(HydraHeadApp):
                 'highlightMatch': True,
                 'valueListMaxHeight': 100
             },
+            editable=True
         )
         gb.configure_default_column(
             groupable=True, 
             value=True, 
             enableRowGroup=True, 
             aggFunc="sum", 
-            editable=True
+            editable=False
         )
         if enable_selection:
             gb.configure_selection(selection_mode)
@@ -234,26 +235,12 @@ class DashboardApp(HydraHeadApp):
                 txt_add_room = st.text_input(" ", key='add_room')
                 btn_add_room = st.form_submit_button("Add Room", on_click=self._btn_add_room_func,args=(txt_add_room))        
 
-    def UI_main(self):
-        ## UI Expander
-        if not 'visible' in st.session_state:
-            st.session_state.visible = False
-        def toggle():
-            st.session_state.visible = not st.session_state.visible
-        btn_toggle = st.button("Toggle", on_click=toggle)
-
-            
-        with st.expander("Room Editor", expanded=st.session_state.visible):
-            self._tab_patients()
-        
+    def UI_layout(self):
         patients_db: List = self.db.patients
         patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
         patients: List[Dict] = patients_df.to_dict(orient="records")
         room_data: Dict = self._make_room_data(patients)
         self.room_list: List = self._room_dict_to_list(room_data)
-
-        ## UI Sidebar
-        self.UI_sidebar()
 
         st.markdown("***")
 
@@ -297,6 +284,26 @@ class DashboardApp(HydraHeadApp):
                                 if event_type == 'cellClicked':
                                     print(f"event_data: {self.grid_return[idx].event_data}")
                                     # # TODO, add global dictionary to store the event data
+    def UI_main(self):
+        ## UI Sidebar
+        self.UI_sidebar()
+
+        col_layout, col_editor = st.columns([4, 2])
+        ## UI Patients Editor
+        with col_editor:
+            if not 'visible' in st.session_state:
+                st.session_state.visible = False
+            def toggle():
+                st.session_state.visible = not st.session_state.visible
+            btn_toggle = st.button("Toggle", on_click=toggle)
+                
+            with st.expander("Room Editor", expanded=st.session_state.visible):
+                self.UI_patients_editor()
+
+
+        with col_layout:
+            self.UI_layout()
+
                             
 
 if __name__ == "__main__":
