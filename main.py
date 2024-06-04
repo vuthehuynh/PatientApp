@@ -11,15 +11,25 @@ from db import (
 )
 from utils import Container
 
+## logging
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+file_handler = logging.FileHandler('log.txt')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+logger.addHandler(logging.StreamHandler())
 
 if __name__ == '__main__':
-    ## database 
+    ## database
     if not 'loaded_account_db' in st.session_state:
-        print(f"Start loading database account.db")
+        logger.info(f"Start loading database account.db")
         db_name = 'account.db'
         create_default_db_account(db_name)
         db_account = read_db(db_name=db_name, table_name=TableName.SINGUPUSER.value)
-        print(f"Successfully loading database account.db")
+        logger.info(f"Successfully loading database account.db")
         st.session_state.loaded_account_db = db_account
     else:
         db_account = st.session_state.loaded_account_db
@@ -57,13 +67,13 @@ if __name__ == '__main__':
     #we can inject a method to be called everytime a user logs out
     @app.logout_callback
     def mylogout_cb():
-        print('I was called from Hydralit at logout!')
+        logger.info('logout successfully!')
         st.session_state.login = False
 
     #we can inject a method to be called everytime a user logs in
     @app.login_callback
     def mylogin_cb():
-        print(f"Welcome back! {app.session_state.username} {app.session_state.clinic}")
+        logger.info(f"Welcome back! {app.session_state.username} {app.session_state.clinic}")
         st.session_state.login = True
         st.rerun()
     #we can inject a method to be called everytime a user logs in
@@ -77,20 +87,15 @@ if __name__ == '__main__':
             if not 'loaded_db' in app.session_state:
                 db_name = f"{clinic}_patient.db"
                 
-                print(f"Start loading database {db_name}")
+                logger.info(f"Start loading database {db_name}")
                 create_default_db_patient(db_name)
                 db_patients = read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
                 db_rooms = read_db(db_name=db_name, table_name=TableName.ROOM.value)
-                # db = {
-                #     'patients': db_patients,
-                #     'rooms': db_rooms,
-                #     'test': 1
-                # }
                 container = Container(
                     patients=db_patients,
                     rooms=db_rooms
                 )
-                print(f"Successfully loading database {db_name}")
+                logger.info(f"Successfully loading database {db_name}")
                 app.session_state.loaded_db = container 
 
             else:
