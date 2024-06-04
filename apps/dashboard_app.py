@@ -1,7 +1,8 @@
 import streamlit as st 
 from hydralit import HydraHeadApp
-from st_aggrid import AgGrid, GridOptionsBuilder
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode
 import pandas as pd
+import datetime
 from db import (
     PatientInfo,
     DBName,
@@ -11,6 +12,7 @@ from db import (
     update_record_keys,
     insert_record,
 )
+from collections import defaultdict
 from utils import sidebar_logo
 from typing import List, Dict 
 from utils import Container
@@ -28,26 +30,51 @@ class DashboardApp(HydraHeadApp):
             self.rooms = [
                 room[1] for room in self.db.rooms
             ]
+            self.grid_return = defaultdict(list)
+            self.patient_df = {}
+            if not 'clicked_data' in st.session_state:
+                st.session_state.clicked_data = defaultdict(dict)
 
+            if not 'btn_func' in st.session_state:
+                st.session_state.btn_func = {}
+                for i in range(11):
+                    st.session_state.btn_func[i] = None
+            # if not 'count' in st.session_state:
+            #     st.session_state.count = 0
+
+                # patients_db: List = self.db.patients
+                # patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
+                # patients: List[Dict] = patients_df.to_dict(orient="records")
+                # room_data: Dict = self._make_room_data(patients)
+                # self.room_list: List = self._room_dict_to_list(room_data)
+            #     st.session_state.room_list = self.room_list 
+            # else:
+            #     self.room_list = st.session_state.room_list
+            st.session_state.count = 0
+            print(f"Count Init {st.session_state.count}")
             print(f"Dashboard login: {self.login}")
             print(f"Loaded {len(self.db.patients)} patients")
             print(f"Loaded {len(self.db.rooms)} rooms")            
         else:
             self.login = False
             print(f"Dashboard login: {False}")
+
+        self.editor_visiable = False
     def run(self):
+        st.session_state.count += 1
+        print(f"Count {st.session_state.count}")
         ## Side bar
         logo_url = './resources/logo.png'
         sidebar_logo(logo_url)
         st.sidebar.markdown("***")
         st.sidebar.title(f"Welcome {self.user}")
-            
+
+        # if 'count' in st.session_state:
+        #     st.session_state.count += 1
+        #     print(f"Count {st.session_state.count}")    
+
         # ## UI main page
-        tab_room, tab_patients, tab_contact = st.tabs(["Room", "Patients", "Contact"])
-        with tab_room:
-            self._tab_room()
-        with tab_patients:
-            self._tab_patients()
+        self.UI_main()
 
     def _btn_update_rooms(self):
         ## TODO: write update room to db
@@ -76,8 +103,9 @@ class DashboardApp(HydraHeadApp):
             event_type: str = data.get("type", None)
             event_data: dict = data.get("data", None)
             rowIdx: int = data.get("rowIndex", None)
-            converted_data = {k: v for k, v in event_data.items() if k != '__pandas_index'}
-            self.db.patients[rowIdx] = tuple(converted_data.values())
+            if event_type == 'cellValueChanged':
+                converted_data = {k: v for k, v in event_data.items() if k != '__pandas_index'}
+                self.db.patients[rowIdx] = tuple(converted_data.values())
             ## TODO write to db
             
 
@@ -96,7 +124,7 @@ class DashboardApp(HydraHeadApp):
                 use_checkbox = True
                 groupSelectsChildren = True 
                 groupSelectsFiltered = True                     
-            enable_sidebar = st.checkbox("Enable grid sidebar", value=False)
+            enableUI_sidebar = st.checkbox("Enable grid sidebar", value=False)
 
         st.markdown("***")
         ## UI Patient List
@@ -130,7 +158,7 @@ class DashboardApp(HydraHeadApp):
                     groupSelectsChildren=groupSelectsChildren,
                     groupSelectsFiltered=groupSelectsFiltered,
                 )
-        if enable_sidebar:
+        if enableUI_sidebar:
             gb.configure_side_bar()
         gb.configure_grid_options(domLayout="normal")
         gridOptions = gb.build()
@@ -161,7 +189,7 @@ class DashboardApp(HydraHeadApp):
         db_name = DBName.PATIENT.value
         keys = tuple(Room.__annotations__.keys())
         values = (txt_edit_room)
-        update_record_keys(db_name, table_name, keys, values, id=self.account_idx_selected)
+        update_record_keys(db_name, table_name, keys, values, id=self.room_idx_selected)
         st.toast("Room edited successfully!")
 
     def _btn_add_room_func(self, txt_add_room):
@@ -211,29 +239,37 @@ class DashboardApp(HydraHeadApp):
         for room, patients in room_data.items():
                 room_list.append({"room": room, "patients": patients})
         return room_list
-    
-    def _tab_room(self):
-        # room_db: List = self.db.fetch_all_records(dataclass_to_tablename[Room]) 
 
-
-        patients_db: List = self.db.patients
-        patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
-
-        # patients_df: pd.DataFrame = self._get_patients_df()
-
-        patients: List[Dict] = patients_df.to_dict(orient="records")
-        self.room_data: Dict = self._make_room_data(patients)
-        self.room_list: List = self._room_dict_to_list(self.room_data)
-        st.subheader("Room Editor")
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            
+    def _mod_room_list(self, idx) -> List:
+        '''
+        Input: 
+            [
+                {'room': 'room1', 'patients': []},
+            ]
+        Output: 
+            [
+                {'room': 'room1', 'patients': []},
+            ]
+        '''
+        room_list = []
+        st.session_state.count += 1 
+        for _idx, room in enumerate(self.room_list):
+            if _idx == idx:
+                # print(f"Before {self.room_list[_idx]}")
+                _tmp = self.room_list[_idx]['patients']
+                _tmp[0]["bed"] = "bed_mod_" + str(_idx) + str(st.session_state.count)
+                
+                self.room_list[_idx]['patients'] = _tmp
+                print(f"After {self.room_list[_idx]}")
+        
+    def UI_sidebar(self):
+        with st.sidebar:
             rooms_df = pd.DataFrame(self.db.rooms, columns=['id'] + list(Room.__annotations__.keys()))
             grid_return = AgGrid(
                 rooms_df, 
                 update_on=["cellClicked"],
                 fit_columns_on_grid_load=True,
-                height=250
+                height=180
             )
             if grid_return.event_data is not None:
                 _room = grid_return.event_data.get("data", None)  
@@ -241,17 +277,39 @@ class DashboardApp(HydraHeadApp):
                     self.room_idx_selected = _room.get("id", None)
                     for k,v in self.room_data.items():
                         self.room_data[k] = _room.get('name', '')
-        with col2:
-            with st.form("Edit Room", border=False):
+                        print(f"Room selected: {_room.get('name', '')}")
+
+            with st.form("Edit Room", border=True):
                 txt_edit_room = st.text_input(" ", value=self.room_data.get('name', ''), key='edit_room')
                 btn_edit_room = st.form_submit_button("Edit Room", on_click=self._btn_edit_room_func,args=(txt_edit_room))
-            with st.form("Add Room", border=False):
+            with st.form("Add Room", border=True):
                 txt_add_room = st.text_input(" ", key='add_room')
-                btn_add_room = st.form_submit_button("Add Room", on_click=self._btn_add_room_func,args=(txt_add_room))
+                btn_add_room = st.form_submit_button("Add Room", on_click=self._btn_add_room_func,args=(txt_add_room))        
+
+    def UI_main(self):
+        ## UI Expander
+        if not 'visible' in st.session_state:
+            st.session_state.visible = False
+        def toggle():
+            st.session_state.visible = not st.session_state.visible
+        btn_toggle = st.button("Toggle", on_click=toggle)
+
+            
+        with st.expander("Room Editor", expanded=st.session_state.visible):
+            self._tab_patients()
+        
+        patients_db: List = self.db.patients
+        patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
+        patients: List[Dict] = patients_df.to_dict(orient="records")
+        room_data: Dict = self._make_room_data(patients)
+        self.room_list: List = self._room_dict_to_list(room_data)
+
+        ## UI Sidebar
+        self.UI_sidebar()
 
         st.markdown("***")
 
-        ## UI Layout Room
+        ## UI Layout
         st.subheader("Room Layout")
         col_cols, _ = st.columns([1, 4])
         with col_cols:
@@ -259,20 +317,72 @@ class DashboardApp(HydraHeadApp):
         n_rows = len(self.rooms) // n_cols + 1
 
         idx = 0
+        if not 'reload_data' in st.session_state:
+            st.reload_data = defaultdict(bool)        
+        def abc():
+            print("Double clicked")
+            st.write(f"Double clicked")
+        
         for i in range(n_rows):
             cols = st.columns(n_cols)
             for j in range(n_cols):
                 with cols[j]:
-                    if idx < len(self.rooms):     
+                    idx = i*n_cols+j
+                    if idx < len(self.rooms):                             
                         _room = self.room_list[idx].get('room', None)
                         _patients = self.room_list[idx].get('patients', [])
-                        st.write(f"Room {_room}")
-                        st.dataframe(pd.DataFrame(_patients))
-                    idx += 1
+                        
+                        self.patient_df[idx] = pd.DataFrame(
+                            _patients, 
+                            columns=['id'] + list( PatientInfo.__annotations__.keys())
+                        )
+                        gd = GridOptionsBuilder().from_dataframe(self.patient_df[idx])
+                        # gd.configure_column("doubleClicked", "doubleClicked Timestamp")
+                        go = gd.build()
+                        # print(f"Before grid return {_patients}")
+                        self.grid_return[idx] = AgGrid(
+                            self.patient_df[idx], 
+                            gridOptions=go,
+                            update_on=["cellClicked"],
+                            fit_columns_on_grid_load=False,
+                            key=f"patient_table_{idx}",
+                            reload_data=True,
+                            height=100
+                        )
+                        # if self.grid_return[idx] is not None:
+                        #     print(f"Grid return {self.grid_return[idx].data}")
+                        if self.grid_return[idx].event_data is not None:
+                            event_type: str = self.grid_return[idx].event_data.get("type", None)
+                            event_data: dict = self.grid_return[idx].event_data.get("data", None)
+                            rowIdx: int = self.grid_return[idx].event_data.get("rowIndex", None)
+                            print(f"event_data: {event_data}")
+                            if event_type == 'cellClicked':
+                                # self.grid_return[idx].event_data = None 
+                                # self._mod_room_list(idx=idx)
+                                # lastDoubleClickedTs = pd.to_datetime(self.grid_return[idx].event_data.get('doubleClicked', None), unit='ms').max()
+                                # idx_max = self.grid_return[idx].event_data.data["doubleClicked"].idxmax()
+                                st.session_state.clicked_data[idx] = {
+                                    'timestamp': datetime.datetime.now().timestamp(),
+                                    'rowIdx': rowIdx
+                                }
+                                # TODO, add global dictionary to store the event data
+                            
+                                # st.session_state.visible = not st.session_state.visible
+                                st.reload_data[idx] = False
+                        # self.grid_return[idx] = None 
+                        # del self.grid_return[idx]
+                        del self.grid_return
+                        self.grid_return = {}
+                        self.patient_df = {}
+        ## Check data
+        # if 'clicked_data' in st.session_state and st.session_state.clicked_data:
+        #     max_entry = min(st.session_state.clicked_data.items(), key=lambda x: x[1]['timestamp'])
+        #     print(f"Max entry: {max_entry}, press_idx: {max_entry[1]['rowIdx']}")
 
 if __name__ == "__main__":
     from dataclasses import dataclass
     from db import read_db, create_default_db_patient
+    from utils import Container
     @dataclass 
     class AppState:
         username: str
@@ -282,9 +392,9 @@ if __name__ == "__main__":
     create_default_db_patient(db_name)
     db_patients = read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
     db_rooms = read_db(db_name=db_name, table_name=TableName.ROOM.value)
-    db = {
-        'patients': db_patients,
-        'rooms': db_rooms
-    }    
-    patient = DashboardApp(title="Dashboard", db=db, app_state=app_state)
+    container = Container(
+                    patients=db_patients,
+                    rooms=db_rooms
+                )    
+    patient = DashboardApp(title="Dashboard", db=container, app_state=app_state)
     patient.run()
