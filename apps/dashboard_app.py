@@ -32,26 +32,7 @@ class DashboardApp(HydraHeadApp):
             ]
             self.grid_return = defaultdict(list)
             self.patient_df = {}
-            if not 'clicked_data' in st.session_state:
-                st.session_state.clicked_data = defaultdict(dict)
 
-            if not 'btn_func' in st.session_state:
-                st.session_state.btn_func = {}
-                for i in range(11):
-                    st.session_state.btn_func[i] = None
-            # if not 'count' in st.session_state:
-            #     st.session_state.count = 0
-
-                # patients_db: List = self.db.patients
-                # patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
-                # patients: List[Dict] = patients_df.to_dict(orient="records")
-                # room_data: Dict = self._make_room_data(patients)
-                # self.room_list: List = self._room_dict_to_list(room_data)
-            #     st.session_state.room_list = self.room_list 
-            # else:
-            #     self.room_list = st.session_state.room_list
-            st.session_state.count = 0
-            print(f"Count Init {st.session_state.count}")
             print(f"Dashboard login: {self.login}")
             print(f"Loaded {len(self.db.patients)} patients")
             print(f"Loaded {len(self.db.rooms)} rooms")            
@@ -61,33 +42,19 @@ class DashboardApp(HydraHeadApp):
 
         self.editor_visiable = False
     def run(self):
-        st.session_state.count += 1
-        print(f"Count {st.session_state.count}")
         ## Side bar
         logo_url = './resources/logo.png'
         sidebar_logo(logo_url)
         st.sidebar.markdown("***")
         st.sidebar.title(f"Welcome {self.user}")
 
-        # if 'count' in st.session_state:
-        #     st.session_state.count += 1
-        #     print(f"Count {st.session_state.count}")    
-
         # ## UI main page
         self.UI_main()
 
     def _btn_update_rooms(self):
         ## TODO: write update room to db
-
         ## Update self.room_list
         st.experimental_rerun()
-        # patients: List[Dict] = self.patients_df.to_dict(orient="records")
-        # self.room_data: Dict = self._make_room_data(patients)
-        # self.room_list: List = self._room_dict_to_list(self.room_data)
-
-    def process_data(**kwargs):
-        for key, value in kwargs.items():
-            print(f"{key}: {value}")
 
     def _argrid_update_data(self, data: Dict):
         '''
@@ -107,7 +74,6 @@ class DashboardApp(HydraHeadApp):
                 converted_data = {k: v for k, v in event_data.items() if k != '__pandas_index'}
                 self.db.patients[rowIdx] = tuple(converted_data.values())
             ## TODO write to db
-            
 
     def _tab_patients(self):
         col1, col2, col3 = st.columns([1, 1, 1])
@@ -128,10 +94,10 @@ class DashboardApp(HydraHeadApp):
 
         st.markdown("***")
         ## UI Patient List
-        # patients_db: List = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])        
-        # patients_db: List = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])        
-        patients_df = pd.DataFrame(self.db.patients, columns=['id'] + list( PatientInfo.__annotations__.keys()))
-
+        patients_df = pd.DataFrame(
+            self.db.patients, 
+            columns=['id'] + list( PatientInfo.__annotations__.keys())
+        )
         gb = GridOptionsBuilder.from_dataframe(patients_df)
 
         gb.configure_column(
@@ -147,7 +113,11 @@ class DashboardApp(HydraHeadApp):
             },
         )
         gb.configure_default_column(
-            groupable=True, value=True, enableRowGroup=True, aggFunc="sum", editable=True
+            groupable=True, 
+            value=True, 
+            enableRowGroup=True, 
+            aggFunc="sum", 
+            editable=True
         )
         if enable_selection:
             gb.configure_selection(selection_mode)
@@ -239,28 +209,6 @@ class DashboardApp(HydraHeadApp):
         for room, patients in room_data.items():
                 room_list.append({"room": room, "patients": patients})
         return room_list
-
-    def _mod_room_list(self, idx) -> List:
-        '''
-        Input: 
-            [
-                {'room': 'room1', 'patients': []},
-            ]
-        Output: 
-            [
-                {'room': 'room1', 'patients': []},
-            ]
-        '''
-        room_list = []
-        st.session_state.count += 1 
-        for _idx, room in enumerate(self.room_list):
-            if _idx == idx:
-                # print(f"Before {self.room_list[_idx]}")
-                _tmp = self.room_list[_idx]['patients']
-                _tmp[0]["bed"] = "bed_mod_" + str(_idx) + str(st.session_state.count)
-                
-                self.room_list[_idx]['patients'] = _tmp
-                print(f"After {self.room_list[_idx]}")
         
     def UI_sidebar(self):
         with st.sidebar:
@@ -317,12 +265,6 @@ class DashboardApp(HydraHeadApp):
         n_rows = len(self.rooms) // n_cols + 1
 
         idx = 0
-        if not 'reload_data' in st.session_state:
-            st.reload_data = defaultdict(bool)        
-        def abc():
-            print("Double clicked")
-            st.write(f"Double clicked")
-        
         for i in range(n_rows):
             cols = st.columns(n_cols)
             for j in range(n_cols):
@@ -337,47 +279,25 @@ class DashboardApp(HydraHeadApp):
                             columns=['id'] + list( PatientInfo.__annotations__.keys())
                         )
                         gd = GridOptionsBuilder().from_dataframe(self.patient_df[idx])
-                        # gd.configure_column("doubleClicked", "doubleClicked Timestamp")
                         go = gd.build()
-                        # print(f"Before grid return {_patients}")
                         self.grid_return[idx] = AgGrid(
                             self.patient_df[idx], 
                             gridOptions=go,
                             update_on=["cellClicked"],
                             fit_columns_on_grid_load=False,
                             key=f"patient_table_{idx}",
-                            reload_data=True,
                             height=100
                         )
-                        # if self.grid_return[idx] is not None:
-                        #     print(f"Grid return {self.grid_return[idx].data}")
-                        if self.grid_return[idx].event_data is not None:
-                            event_type: str = self.grid_return[idx].event_data.get("type", None)
-                            event_data: dict = self.grid_return[idx].event_data.get("data", None)
-                            rowIdx: int = self.grid_return[idx].event_data.get("rowIndex", None)
-                            print(f"event_data: {event_data}")
-                            if event_type == 'cellClicked':
-                                # self.grid_return[idx].event_data = None 
-                                # self._mod_room_list(idx=idx)
-                                # lastDoubleClickedTs = pd.to_datetime(self.grid_return[idx].event_data.get('doubleClicked', None), unit='ms').max()
-                                # idx_max = self.grid_return[idx].event_data.data["doubleClicked"].idxmax()
-                                st.session_state.clicked_data[idx] = {
-                                    'timestamp': datetime.datetime.now().timestamp(),
-                                    'rowIdx': rowIdx
-                                }
-                                # TODO, add global dictionary to store the event data
+                        if self.grid_return[idx]:
+                            if self.grid_return[idx].event_data is not None:
+                                event_type: str = self.grid_return[idx].event_data.get("type", None)
+                                event_data: dict = self.grid_return[idx].event_data.get("data", None)
+                                rowIdx: int = self.grid_return[idx].event_data.get("rowIndex", None)
+                                value: str = self.grid_return[idx].event_data.get("value", None)
+                                if event_type == 'cellClicked':
+                                    print(f"event_data: {self.grid_return[idx].event_data}")
+                                    # # TODO, add global dictionary to store the event data
                             
-                                # st.session_state.visible = not st.session_state.visible
-                                st.reload_data[idx] = False
-                        # self.grid_return[idx] = None 
-                        # del self.grid_return[idx]
-                        del self.grid_return
-                        self.grid_return = {}
-                        self.patient_df = {}
-        ## Check data
-        # if 'clicked_data' in st.session_state and st.session_state.clicked_data:
-        #     max_entry = min(st.session_state.clicked_data.items(), key=lambda x: x[1]['timestamp'])
-        #     print(f"Max entry: {max_entry}, press_idx: {max_entry[1]['rowIdx']}")
 
 if __name__ == "__main__":
     from dataclasses import dataclass
