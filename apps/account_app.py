@@ -3,7 +3,7 @@ import streamlit as st
 from hydralit import HydraHeadApp
 import pandas as pd
 from db import (
-    SingupUser,
+    Account,
     insert_record,
     update_record_keys,
     TableName,
@@ -21,7 +21,6 @@ class AccountApp(HydraHeadApp):
         self.account_idx_selected = None 
         self.account_data = self._init_account_data()
         self.clinics = self._load_clinics()
-        self.db_name = 'account.db'
 
     def run(self):
         ## UI Sidebar
@@ -80,10 +79,10 @@ class AccountApp(HydraHeadApp):
 
                     btn_submitted = st.form_submit_button("Edit Account")
                     if btn_submitted:
-                        keys = tuple(SingupUser.__annotations__.keys())
+                        keys = tuple(Account.__annotations__.keys())
                         values = (txt_user_name, txt_password, txt_access_level, txt_clinic)
                         db_name = DBName.ACCOUNT.value
-                        table_name = TableName.SINGUPUSER.value
+                        table_name = TableName.ACCOUNT.value
                         update_record_keys(db_name, table_name, keys, values, id=self.account_idx_selected)
                         st.toast("Account edited successfully!")
 
@@ -98,7 +97,7 @@ class AccountApp(HydraHeadApp):
                     if btn_submitted:
                         values = (txt_add_user_name, txt_add_password, txt_add_access_level, txt_add_clinic)
                         db_name = DBName.ACCOUNT.value
-                        table_name = TableName.SINGUPUSER.value
+                        table_name = TableName.ACCOUNT.value
                         insert_record(db_name, table_name, values=values)
                         st.toast("Account added successfully!")
 
@@ -130,7 +129,7 @@ class AccountApp(HydraHeadApp):
             
     def _init_account_data(self):
         singup_db = {}
-        keys = tuple(SingupUser.__annotations__.keys())
+        keys = tuple(Account.__annotations__.keys())
         for key in keys:
             singup_db[key] = ""
         return singup_db    
@@ -140,7 +139,7 @@ class AccountApp(HydraHeadApp):
         users = [
             account[1:] for account in users
         ]
-        keys = tuple(SingupUser.__annotations__.keys())
+        keys = tuple(Account.__annotations__.keys())
         clinics = []
         for user in users:
             for key, value in zip(keys, user):
@@ -159,6 +158,6 @@ if __name__ == "__main__":
     app_state = AppState(username="huynh", clinic="PK2")
     db_name = 'account_db'
     create_default_db_account(db_name)
-    db_account = read_db(db_name=db_name, table_name=TableName.SINGUPUSER.value)  
+    db_account = read_db(db_name=db_name, table_name=TableName.ACCOUNT.value)  
     patient = AccountApp(title="Account", db=db_account, app_state=app_state)
     patient.run()

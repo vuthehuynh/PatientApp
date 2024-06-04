@@ -3,7 +3,7 @@ from typing import Dict
 import streamlit as st
 from hydralit import HydraHeadApp
 from db import (
-    SingupUser,
+    Account,
     DBName,
     TableName,
     fetch_all_records
@@ -98,10 +98,10 @@ class LoginApp(HydraHeadApp):
 
     def _check_login(self, login_data) -> int:
         # db_name = DBName.ACCOUNT.value
-        # table_name = TableName.SINGUPUSER.value
+        # table_name = TableName.ACCOUNT.value
         # data: list = fetch_all_records(db_name, table_name)
         for data_item in self.db_account:
-            account: SingupUser = SingupUser(*data_item[1:])
+            account: Account = Account(*data_item[1:])
             if account.username == login_data['username'] and account.password == login_data['password']:
                 return account.access_level, account.clinic
         return 0, None

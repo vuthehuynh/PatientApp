@@ -5,7 +5,7 @@ import streamlit as st
 from hydralit import HydraHeadApp
 from utils import hash_password, set_background
 from db import (
-    SingupUser,
+    Account,
     DBName,
     TableName,
     insert_record
@@ -101,13 +101,13 @@ class SignUpApp(HydraHeadApp):
 
     def _save_signup(self, signup_data):
 
-        account = SingupUser(
+        account = Account(
             username=signup_data['username'],
             password=hash_password(signup_data['password']),
             access_level=signup_data['access_level']
         )
         values = (account.username, account.password, account.access_level)
         db_name = DBName.ACCOUNT.value
-        table_name = TableName.SINGUPUSER.value
+        table_name = TableName.ACCOUNT.value
         insert_record(db_name, table_name, values=values)
 

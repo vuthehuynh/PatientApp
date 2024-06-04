@@ -28,7 +28,7 @@ if __name__ == '__main__':
         logger.info(f"Start loading database account.db")
         db_name = 'account.db'
         create_default_db_account(db_name)
-        db_account = read_db(db_name=db_name, table_name=TableName.SINGUPUSER.value)
+        db_account = read_db(db_name=db_name, table_name=TableName.ACCOUNT.value)
         logger.info(f"Successfully loading database account.db")
         st.session_state.loaded_account_db = db_account
     else:

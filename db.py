@@ -4,7 +4,7 @@ from typing import Tuple, Union
 from enum import Enum
 # Define data classes for tables
 @dataclass
-class SingupUser:
+class Account:
     username: str
     password: str
     access_level: int
@@ -26,14 +26,20 @@ class PatientInfo:
     district : str
 
 dataclass_to_tablename = {
-    SingupUser: "signup_users",
+    Account: "account",
     PatientInfo: "patient_info",
     Clinic: "clinic",
     Room: "room"
 }
+tablename_to_class = {
+    "account": Account,
+    "patient_info": PatientInfo,
+    "clinic": Clinic,
+    "room": Room
+}
 
 class TableName(str, Enum):
-    SINGUPUSER = "signup_users"
+    ACCOUNT = "account"
     PATIENTINFO = "patient_info"
     CLINIC = "clinic"
     ROOM = "room"
@@ -42,12 +48,7 @@ class DBName(str, Enum):
     ACCOUNT = "account.db"
     PATIENT = "patient.db"
 
-tablename_to_class = {
-    TableName.SINGUPUSER: SingupUser,
-    TableName.PATIENTINFO: PatientInfo,
-    TableName.CLINIC: Clinic,
-    TableName.ROOM: Room
-}
+
 
 def create_table(db_name, table_name, columns):
     conn = sqlite3.connect(db_name)
@@ -57,11 +58,11 @@ def create_table(db_name, table_name, columns):
     cursor.execute(query)
     conn.close()
 
-def insert_record(db_name, data_class: dataclass, values: Union[str, Tuple]):
+def insert_record(db_name, table_name, values: Union[str, Tuple]):
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
 
-    table_name = dataclass_to_tablename[data_class]
+    data_class = tablename_to_class[table_name]
     keys = tuple(data_class.__annotations__.keys())
     if len(keys) == 1:
         keys = str(keys).replace(",", "")
@@ -98,7 +99,7 @@ def get_table_numentry(db_name, table_name):
 
 def update_record(db_name, table_name, data_class: dataclass, values, id: int = None):
     '''
-    e.g. update_record("signup_users", SingupUser, ("john_doe1", "password12345", 1), 1)
+    e.g. update_record("account", Account, ("john_doe1", "password12345", 1), 1)
     '''
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()    
@@ -118,7 +119,7 @@ def update_record(db_name, table_name, data_class: dataclass, values, id: int = 
 
 def delete_records(db_name, data_class: dataclass, ids: list = []):
     '''
-    e.g. update_record("signup_users", SingupUser, ("john_doe1", "password12345", 1), 1)
+    e.g. update_record("account", Account, ("john_doe1", "password12345", 1), 1)
     '''
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()    
@@ -164,7 +165,7 @@ def read_db(db_name, table_name):
     return data
 
 def create_default_db_account(db_name):
-    # Table signup_users
+    # Table account
     conn = sqlite3.connect(db_name)
     table_fields = [
         "id INTEGER PRIMARY KEY", 
@@ -173,7 +174,7 @@ def create_default_db_account(db_name):
         "access_level INTEGER NOT NULL",
         "clinic TEXT"
     ]
-    table_name = TableName.SINGUPUSER.value
+    table_name = TableName.ACCOUNT.value
     create_table(db_name, table_name, table_fields)
     conn.close()
 

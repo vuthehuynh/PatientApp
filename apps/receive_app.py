@@ -227,6 +227,6 @@ if __name__ == "__main__":
         username: str
         clinic: str
     app_state = AppState(username="huynh", clinic="PK2")
-    db_patients = read_db(db_name=f"{app_state.clinic}_patient.db", db_table=TableName.SINGUPUSER.value)
+    db_patients = read_db(db_name=f"{app_state.clinic}_patient.db", db_table=TableName.ACCOUNT.value)
     patient = ReceiveApp(title="Receive", db=db_patients, app_state=app_state)
     patient.run()
