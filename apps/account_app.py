@@ -6,13 +6,14 @@ from db import (
     Account,
     insert_record,
     update_record_keys,
+    delete_records,
     TableName,
     DBName
 )
 from utils import sidebar_logo, Utils
 from st_aggrid import AgGrid, GridOptionsBuilder
 from typing import List
-
+from dataclasses import dataclass
 class AccountApp(HydraHeadApp):
     def __init__(self, title = '', db = None, **kwargs):
         self.__dict__.update(kwargs)
@@ -20,8 +21,17 @@ class AccountApp(HydraHeadApp):
         self.accounts: List[Account] = db
         self.clinics = self._load_clinics()
         self.account_current = self._init_account_data()
-        self.account_idx_selected = None 
-        
+        self.idx_account_db = None 
+
+        if not 'init' in st.session_state:
+            st.session_state.init = True
+            # selected idx of dataframe 
+            self.idx_df = None 
+            # The last idx of the db 
+            self.idx_db = None     
+            # The ids of selected rows in dataframe
+            self.ids_df = []
+            self.ids_db = []
 
     def run(self):
         ## UI Sidebar
@@ -44,26 +54,45 @@ class AccountApp(HydraHeadApp):
         st.header('Accounts')
         UI_account = st.columns([1,1])
 
-
         with UI_account[0]:
 
             _accounts: List = [account.__dict__ for account in self.accounts]
-            _account_df = pd.DataFrame(_accounts, columns=Account.__annotations__.keys())
-            gd = GridOptionsBuilder().from_dataframe(_account_df)
-            gd.configure_column('id', hide=True)
+            self.account_df: pd.DataFrame = pd.DataFrame(_accounts, columns=Account.__annotations__.keys())
+            gd = GridOptionsBuilder().from_dataframe(self.account_df)
+            enable_selection = st.checkbox("Enable row selection", value=False)
+            if enable_selection:
+                selection_mode = "multiple"
+                use_checkbox = True
+                groupSelectsChildren = True 
+                groupSelectsFiltered = True
+                gd.configure_selection(selection_mode)
+                gd.configure_selection(
+                    selection_mode,
+                    use_checkbox=True,
+                    groupSelectsChildren=groupSelectsChildren,
+                    groupSelectsFiltered=groupSelectsFiltered,
+                )
             go = gd.build()
             grid_return = AgGrid(
-                _account_df, 
+                self.account_df, 
                 gridOptions=go,
                 update_on=["cellClicked"],
                 fit_columns_on_grid_load=True
                 )
+            
+            st.button("Delete selected", on_click=self._btn_delete_selected)
             if grid_return.event_data is not None:
                 event_data = grid_return.event_data.get("data", None)  
-                event_rowIdx: int = grid_return.event_data.get("rowIndex", None)
+                event_type = grid_return.event_data.get("type", None)  
+                self.idx_df: int = grid_return.event_data.get("rowIndex", None)
                 if event_data is not None:
-                    self.account_idx_selected = event_data.get("id", None)
+                    self.idx_account_db = event_data.get("id", None)
                     self.account_current = Utils.assign_dict_to_dict(self.account_current, event_data)
+                if event_type == "selectionChanged":
+                    rows_data: pd.DataFrame = grid_return.selected_rows
+                    rows: List = rows_data.to_dict(orient='records')
+                    self.ids_df = rows_data.index.tolist()
+                    self.ids_db = [_row.get("id") for _row in rows]
 
         with UI_account[1]:
             tab_edit_account, tab_add_account = st.tabs(["Edit Account", "Add Account"])
@@ -81,12 +110,23 @@ class AccountApp(HydraHeadApp):
 
                     btn_submitted = st.form_submit_button("Edit Account")
                     if btn_submitted:
+                        ## Save to db
                         keys = tuple(Account.__annotations__.keys())[1:]
                         values = (txt_user_name, txt_password, txt_access_level, txt_clinic)
                         db_name = DBName.ACCOUNT.value
                         table_name = TableName.ACCOUNT.value
-                        update_record_keys(db_name, table_name, keys, values, id=self.account_idx_selected)
+                        update_record_keys(db_name, table_name, keys, values, id=self.idx_account_db)
                         st.toast("Account edited successfully!")
+
+                        ## Save to memory (self.accounts)
+                        self.accounts = self._update_to_memory(
+                            data=dict(zip(keys, values)),
+                            input_df=self.account_df,
+                            idx_df=self.idx_df,
+                            memory=self.accounts,
+                            classfootprint=Account
+                        )
+                        st.rerun()
 
             with tab_add_account:
                 with st.form("Add Account"):
@@ -97,14 +137,56 @@ class AccountApp(HydraHeadApp):
 
                     btn_submitted = st.form_submit_button("Add Account")
                     if btn_submitted:
+                        ## Save to db
                         values = (txt_add_user_name, txt_add_password, txt_add_access_level, txt_add_clinic)
                         db_name = DBName.ACCOUNT.value
                         table_name = TableName.ACCOUNT.value
-                        insert_record(db_name, table_name, values=values)
+                        self.idx_db = insert_record(db_name, table_name, values=values)
                         st.toast("Account added successfully!")
+
+                        ## Update memory (self.accounts)
+                        keys = tuple(Account.__annotations__.keys())
+                        values = tuple([self.idx_db]) + values
+
+                        self.accounts = self._add_to_memory(
+                            data=dict(zip(keys, values)),
+                            memory=self.accounts,
+                            classfootprint=Account
+                        )
+
+                        st.rerun()
 
         st.markdown("***")
 
+    def _update_to_memory(
+            self, 
+            data: dict,
+            input_df: pd.DataFrame,
+            idx_df: int,
+            memory: List,
+            classfootprint: dataclass = Account
+        )-> List:
+            
+            mod_account_df: dict = input_df.iloc[idx_df].to_dict()
+            mod_account_df = Utils.assign_dict_to_dict(mod_account_df, data)
+            _id1 = mod_account_df.get('id', None)
+            _id2 = [idx for idx, account in enumerate(memory) if account.id == _id1]
+            if _id2:
+                memory[_id2[0]] = classfootprint(**mod_account_df)
+            return memory
+
+    def _add_to_memory(
+            self, 
+            data: dict,
+            memory: List,
+            classfootprint: dataclass = Account
+        )-> List:
+
+            add_account = classfootprint(**data)
+            memory.append(add_account)
+
+            return memory
+            
     def UI_db_statistics(self):
         ## Get list of clinics
         st.markdown("***")
@@ -128,6 +210,35 @@ class AccountApp(HydraHeadApp):
         #         st.write(tables)
         #     else:
         #         st.error("DB not found!")
+
+    def _btn_delete_selected(self):
+        '''
+        Deleted selected account
+        '''
+        ## Delete from db
+        db_name = DBName.ACCOUNT.value
+        table_name = TableName.ACCOUNT.value
+        delete_records(db_name, table_name, ids=self.ids_db)
+
+        ## Delete from memory 
+        self.accounts = self._delete_from_memory(
+            ids_db=self.ids_db,
+            memory=self.accounts
+        )
+
+    def _delete_from_memory(
+            self, 
+            ids_db: dict,
+            memory: list,
+        )-> list:
+            '''
+            ids_db: idx of rows in db
+            '''
+            new_memory = [
+                account for account in memory if str(account.id) not in ids_db
+            ]
+                
+            return new_memory
             
     def _init_account_data(self):
         account = {}

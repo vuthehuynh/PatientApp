@@ -8,7 +8,7 @@ class Account:
     id: int 
     username: str
     password: str
-    access_level: int
+    access_level: str
     clinic: str
 
 @dataclass
@@ -74,13 +74,14 @@ def insert_record(db_name, table_name, values: Union[str, Tuple], remove_id: boo
 
     if isinstance(values, str):
         values = f"('{values}')"
-        
-    print(keys)        
+
     query = f"INSERT INTO {table_name} {keys} VALUES {values}"
     cursor.execute(query)
+    inserted_id = cursor.lastrowid
     conn.commit()
-
     conn.close()
+
+    return inserted_id
 
 def get_table_names(db_name):
     conn = sqlite3.connect(db_name)
@@ -125,13 +126,13 @@ def update_record(db_name, table_name, data_class: dataclass, values, id: int = 
     conn.commit()
     conn.close()
 
-def delete_records(db_name, data_class: dataclass, ids: list = []):
+def delete_records(db_name, table_name, ids: list = []):
     '''
     e.g. update_record("account", Account, ("john_doe1", "password12345", 1), 1)
     '''
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()    
-    table_name = dataclass_to_tablename[data_class]
+    # table_name = dataclass_to_tablename[data_class]
     if len(ids) == 1:
         ids_to_delete_str = str(ids[0])
     else:
@@ -177,10 +178,10 @@ def create_default_db_account(db_name):
     conn = sqlite3.connect(db_name)
     table_fields = [
         "id INTEGER PRIMARY KEY", 
-        "username TEXT", 
-        "password TEXT",
-        "access_level INTEGER NOT NULL",
-        "clinic TEXT"
+        "username VARCHAR(50)", 
+        "password VARCHAR(255)",
+        "access_level VARCHAR(50)",
+        "clinic VARCHAR(100)"
     ]
     table_name = TableName.ACCOUNT.value
     create_table(db_name, table_name, table_fields)

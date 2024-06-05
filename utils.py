@@ -40,7 +40,8 @@ class Utils:
     @staticmethod
     def assign_dict_to_dict(dic1, dic2):
         for k,v in dic1.items():
-            dic1[k] = dic2.get(k, None)
+            if dic2.get(k, None) is not None:
+                dic1[k] = dic2.get(k, None)
         return dic1
     
 def hash_password(password):

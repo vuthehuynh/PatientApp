@@ -30,7 +30,6 @@ if __name__ == '__main__':
         db_name = 'account.db'
         create_default_db_account(db_name)
         _db_account: List = read_db(db_name=db_name, table_name=TableName.ACCOUNT.value)
-        print(_db_account)
         db_account: List[Account] = Utils.format_db_output(_db_account, TableName.ACCOUNT.value)
         logger.info(f"Successfully loading database account.db")
         st.session_state.loaded_account_db = db_account
