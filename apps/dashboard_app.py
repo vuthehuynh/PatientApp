@@ -349,7 +349,6 @@ class DashboardApp(HydraHeadApp):
                     rows_data: pd.DataFrame = grid_return.selected_rows
                     rows: List = rows_data.to_dict(orient='records')
                     self.ids_room_db = [_row.get("id") for _row in rows]
-                    print(f"ids_room_db: {self.ids_room_db}")
             txt_edit_room = st.text_input(" ", value=self.room_current.get('name', ''), key='edit_room')
             values = (txt_edit_room)
             btn_edit_room = st.button("Edit Room", on_click=self._btn_edit_room_func,args=(txt_edit_room,))
@@ -391,11 +390,9 @@ class DashboardApp(HydraHeadApp):
 
         _patients: List = [patient.__dict__ for patient in self.patients]
         patients_df = pd.DataFrame(_patients, columns=PatientInfo.__annotations__.keys())
-        print(f"patients_df: {patients_df}")
         patients: List[Dict] = patients_df.to_dict(orient="records")
         room_data: Dict = self._make_room_data(patients)
         self.room_list: List = self._room_dict_to_list(room_data)
-        print(f"room_list: {self.room_list}")
         st.markdown("***")
 
         ## UI Layout
@@ -411,7 +408,9 @@ class DashboardApp(HydraHeadApp):
             for j in range(n_cols):
                 with cols[j]:
                     idx = i*n_cols+j
-                    if idx < len(self.roomlist):                             
+                    if idx < len(self.roomlist):   
+                        # st.subheader(self.roomlist[idx])                          
+                        st.markdown(f"**{self.roomlist[idx]}**")
                         _patients = self.room_list[idx].get('patients', [])
                         
                         self.patient_df[idx] = pd.DataFrame(
@@ -435,7 +434,7 @@ class DashboardApp(HydraHeadApp):
                                 rowIdx: int = self.grid_return[idx].event_data.get("rowIndex", None)
                                 value: str = self.grid_return[idx].event_data.get("value", None)
                                 if event_type == 'cellClicked':
-                                    print(f"event_data: {self.grid_return[idx].event_data}")
+                                    pass 
                                     # # TODO, add global dictionary to store the event data
     def UI_main(self):
         ## UI Sidebar
