@@ -3,12 +3,13 @@ from hydralit import HydraHeadApp
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode
 import pandas as pd
 import datetime
+from dataclasses import dataclass
 from db import (
     PatientInfo,
     DBName,
     Room,
     TableName,
-    tablename_to_class,
+    delete_records,
     update_record_keys,
     insert_record,
 )
@@ -21,26 +22,41 @@ class DashboardApp(HydraHeadApp):
         self.__dict__.update(kwargs)
         self.room_data = {"name": ""}
         self.room_idx_selected = None
+
         if app_state is not None:
             self.user = app_state.username
             self.clinic = app_state.clinic
             self.login = True 
-            self.db: Container = db
+            self.db_name = f"{self.clinic}_patient.db"
+            self.rooms: List[Room] = db.rooms
+            self.room_current: dict = {'name': ''}
+            self.patients: List[PatientInfo] = db.patients
 
-            self.rooms = [
-                room[1] for room in self.db.rooms
-            ]
             self.grid_return = defaultdict(list)
             self.patient_df = {}
-
             print(f"Dashboard login: {self.login}")
-            print(f"Loaded {len(self.patients)} patients")
-            print(f"Loaded {len(self.db.rooms)} rooms")            
+
         else:
             self.login = False
             print(f"Dashboard login: {False}")
 
+        if not 'init' in st.session_state:
+            # idx of account db when selected
+            self.idx_patient_db = None
+            self.idx_room_db = None
+            st.session_state.init = True
+            # selected idx of dataframe 
+            self.idx_patient_df = None 
+            self.idx_room_df = None 
+            # The added idx of new item in db
+            self.idx_room_added_record_db = None     
+            # The ids of selected rows in dataframe
+            self.ids_room_df = []
+            self.ids_room_db = []
+            
+
         self.editor_visiable = False
+
     def run(self):
         ## Side bar
         logo_url = './resources/logo.png'
@@ -99,7 +115,7 @@ class DashboardApp(HydraHeadApp):
             columns=['id'] + list( PatientInfo.__annotations__.keys())
         )
         gb = GridOptionsBuilder.from_dataframe(patients_df)
-        gb.configure_column("id", hide=True)
+        # gb.configure_column("id", hide=True)
         gb.configure_column(
             "room",
             cellEditor='agSelectCellEditor', 
@@ -156,20 +172,73 @@ class DashboardApp(HydraHeadApp):
         return None
     
     def _btn_edit_room_func(self, txt_edit_room):
+        ## Save to db
+        keys = tuple(Room.__annotations__.keys())[1:]
+        values = (txt_edit_room,)
+        db_name = self.db_name
         table_name = TableName.ROOM.value
-        db_name = DBName.PATIENT.value
-        keys = tuple(Room.__annotations__.keys())
-        values = (txt_edit_room)
-        update_record_keys(db_name, table_name, keys, values, id=self.room_idx_selected)
+        update_record_keys(db_name, table_name, keys, values, id=self.idx_room_db)
         st.toast("Room edited successfully!")
+
+        ## Save to memory (self.accounts)
+        self.rooms = self._update_to_memory(
+            data=dict(zip(keys, values)),
+            input_df=self.rooms_df,
+            idx_df=self.idx_room_df,
+            memory=self.rooms,
+            classfootprint=Room
+        )
+        # st.rerun()
 
     def _btn_add_room_func(self, txt_add_room):
+        ## Save to db
+        values = (txt_add_room)
+        db_name = self.db_name
         table_name = TableName.ROOM.value
-        db_name = DBName.PATIENT.value
-        insert_record(db_name, table_name, values=(txt_add_room))
-        st.toast("Account added successfully!")
-        st.toast("Room edited successfully!")
+        self.idx_added_record_db = insert_record(db_name, table_name, values=values)
+        st.toast("Room added successfully!")
 
+        ## Update memory (self.accounts)
+        keys = tuple(Room.__annotations__.keys())
+        values = tuple([self.idx_added_record_db]) + tuple([txt_add_room])
+
+        self.rooms = self._add_to_memory(
+            data=dict(zip(keys, values)),
+            memory=self.rooms,
+            classfootprint=Room
+        )
+
+        # st.rerun()        
+
+    def _update_to_memory(
+            self, 
+            data: dict,
+            input_df: pd.DataFrame,
+            idx_df: int,
+            memory: List,
+            classfootprint: dataclass = Room
+        )-> List:
+            
+            mod_account_df: dict = input_df.iloc[idx_df].to_dict()
+            mod_account_df = Utils.assign_dict_to_dict(mod_account_df, data)
+            _id1 = mod_account_df.get('id', None)
+            _id2 = [idx for idx, account in enumerate(memory) if account.id == _id1]
+            if _id2:
+                memory[_id2[0]] = classfootprint(**mod_account_df)
+            return memory
+    
+    def _add_to_memory(
+            self, 
+            data: dict,
+            memory: List,
+            classfootprint: dataclass = Room
+        )-> List:
+
+            add_account = classfootprint(**data)
+            memory.append(add_account)
+
+            return memory
+    
     def _get_patients_df(self):
         patients_db: List = self.patients
         patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
@@ -213,32 +282,87 @@ class DashboardApp(HydraHeadApp):
         
     def UI_sidebar(self):
         with st.sidebar:
-            rooms_df = pd.DataFrame(self.db.rooms, columns=['id'] + list(Room.__annotations__.keys()))
-            gb = GridOptionsBuilder.from_dataframe(rooms_df)
-            gb.configure_column("id", hide=True)
+            _rooms: List = [room.__dict__ for room in self.rooms]
+            self.rooms_df = pd.DataFrame(_rooms, columns=Room.__annotations__.keys())
+            gb = GridOptionsBuilder.from_dataframe(self.rooms_df)
+
+            enable_selection = st.checkbox("Enable row selection", value=False)
+
+            if enable_selection:
+                selection_mode = "multiple"
+                use_checkbox = True
+                groupSelectsChildren = True 
+                groupSelectsFiltered = True                     
+
+                gb.configure_selection(selection_mode)
+                if use_checkbox:
+                    gb.configure_selection(
+                        selection_mode,
+                        use_checkbox=True,
+                        groupSelectsChildren=groupSelectsChildren,
+                        groupSelectsFiltered=groupSelectsFiltered,
+                    )
+
             gridOptions = gb.build()
+            
             grid_return = AgGrid(
-                rooms_df, 
+                self.rooms_df, 
                 gridOptions=gridOptions,
                 update_on=["cellClicked"],
                 fit_columns_on_grid_load=True,
                 height=180
             )
+            st.button("Delete selected", on_click=self._btn_delete_selected)
+
             if grid_return.event_data is not None:
-                _room = grid_return.event_data.get("data", None)  
-                if _room is not None:
-                    self.room_idx_selected = _room.get("id", None)
-                    for k,v in self.room_data.items():
-                        self.room_data[k] = _room.get('name', '')
-                        print(f"Room selected: {_room.get('name', '')}")
+                event_data = grid_return.event_data.get("data", None)  
+                event_type = grid_return.event_data.get("type", None)  
+                self.idx_room_df: int = grid_return.event_data.get("rowIndex", None)
+                if event_data is not None:
+                    self.idx_room_db = event_data.get("id", None)
+                    self.room_current = Utils.assign_dict_to_dict(self.room_current, event_data)
+                if event_type == "selectionChanged":
+                    rows_data: pd.DataFrame = grid_return.selected_rows
+                    rows: List = rows_data.to_dict(orient='records')
+                    self.ids_room_df = rows_data.index.tolist()
+                    self.ids_room_db = [_row.get("id") for _row in rows]
+                    print(f"ids_room_df: {self.ids_room_df}")
+                    print(f"ids_room_db: {self.ids_room_db}")
+            txt_edit_room = st.text_input(" ", value=self.room_current.get('name', ''), key='edit_room')
+            values = (txt_edit_room)
+            btn_edit_room = st.button("Edit Room", on_click=self._btn_edit_room_func,args=(txt_edit_room,))
+            txt_add_room = st.text_input(" ", key='add_room')
+            btn_add_room = st.button("Add Room", on_click=self._btn_add_room_func,args=(txt_add_room,))        
 
-            with st.form("Edit Room", border=True):
-                txt_edit_room = st.text_input(" ", value=self.room_data.get('name', ''), key='edit_room')
-                btn_edit_room = st.form_submit_button("Edit Room", on_click=self._btn_edit_room_func,args=(txt_edit_room))
-            with st.form("Add Room", border=True):
-                txt_add_room = st.text_input(" ", key='add_room')
-                btn_add_room = st.form_submit_button("Add Room", on_click=self._btn_add_room_func,args=(txt_add_room))        
+    def _btn_delete_selected(self):
+        '''
+        Deleted selected account
+        '''
+        ## Delete from db
+        db_name = self.db_name
+        table_name = TableName.ROOM.value
+        delete_records(db_name, table_name, ids=self.ids_room_db)
 
+        ## Delete from memory 
+        self.patients = self._delete_from_memory(
+            ids_db=self.ids_room_db,
+            memory=self.patients
+        )
+
+    def _delete_from_memory(
+            self, 
+            ids_db: dict,
+            memory: list,
+        )-> list:
+            '''
+            ids_db: idx of rows in db
+            '''
+            new_memory = [
+                account for account in memory if str(account.id) not in ids_db
+            ]
+                
+            return new_memory
+    
     def UI_layout(self):
         patients_db: List = self.patients
         patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
@@ -293,28 +417,28 @@ class DashboardApp(HydraHeadApp):
         ## UI Sidebar
         self.UI_sidebar()
 
-        col_layout, col_editor = st.columns([4, 2])
-        ## UI Patients Editor
-        with col_editor:
-            if not 'visible' in st.session_state:
-                st.session_state.visible = False
-            def toggle():
-                st.session_state.visible = not st.session_state.visible
-            btn_toggle = st.button("Toggle", on_click=toggle)
+        # col_layout, col_editor = st.columns([4, 2])
+        # ## UI Patients Editor
+        # with col_editor:
+        #     if not 'visible' in st.session_state:
+        #         st.session_state.visible = False
+        #     def toggle():
+        #         st.session_state.visible = not st.session_state.visible
+        #     btn_toggle = st.button("Toggle", on_click=toggle)
                 
-            with st.expander("Room Editor", expanded=st.session_state.visible):
-                self.UI_patients_editor()
+        #     with st.expander("Room Editor", expanded=st.session_state.visible):
+        #         self.UI_patients_editor()
 
 
-        with col_layout:
-            self.UI_layout()
+        # with col_layout:
+        #     self.UI_layout()
 
                             
 
 if __name__ == "__main__":
     from dataclasses import dataclass
     from db import read_db, create_default_db_patient
-    from utils import Container
+    from utils import Container, Utils
     @dataclass 
     class AppState:
         username: str
@@ -322,8 +446,11 @@ if __name__ == "__main__":
     app_state = AppState(username="huynh", clinic="PK2")
     db_name = f"PK2_patient.db"
     create_default_db_patient(db_name)
-    db_patients = read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
-    db_rooms = read_db(db_name=db_name, table_name=TableName.ROOM.value)
+    _db_patients = read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
+    db_patients: List[PatientInfo] = Utils.format_db_output(_db_patients, TableName.PATIENTINFO.value)
+
+    _db_rooms = read_db(db_name=db_name, table_name=TableName.ROOM.value)
+    db_rooms: List[Room] = Utils.format_db_output(_db_rooms, TableName.ROOM.value)
     container = Container(
                     patients=db_patients,
                     rooms=db_rooms

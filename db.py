@@ -17,6 +17,7 @@ class Clinic:
 
 @dataclass
 class Room:
+    id: int
     name: str
 
 @dataclass
@@ -66,12 +67,12 @@ def insert_record(db_name, table_name, values: Union[str, Tuple], remove_id: boo
 
     data_class = tablename_to_class[table_name]
     keys = tuple(data_class.__annotations__.keys())
+    if remove_id:
+        keys = keys[1:]
     if len(keys) == 1:
         keys = str(keys).replace(",", "")
 
     ## Remove the id fields 
-    if remove_id:
-        keys = keys[1:]
 
     if isinstance(values, str):
         values = f"('{values}')"
@@ -203,7 +204,7 @@ def create_default_db_patient(db_name):
 
     table_fields = [
         "id INTEGER PRIMARY KEY", 
-        "name TEXT", 
+        "name VARCHAR(50)", 
     ]
     table_name = TableName.ROOM.value
     create_table(db_name, table_name, table_fields)

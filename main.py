@@ -7,6 +7,7 @@ from db import (
     TableName, 
     Account,
     PatientInfo,
+    Room,
     create_default_db_account, 
     create_default_db_patient, 
     read_db
@@ -94,7 +95,8 @@ if __name__ == '__main__':
                 create_default_db_patient(db_name)
                 _db_patients = read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
                 db_patients: List[PatientInfo] = Utils.format_db_output(_db_patients, TableName.PATIENTINFO.value)
-                db_rooms = read_db(db_name=db_name, table_name=TableName.ROOM.value)
+                _db_rooms = read_db(db_name=db_name, table_name=TableName.ROOM.value)
+                db_rooms: List[Room] = Utils.format_db_output(_db_rooms, TableName.ROOM.value)
                 container = Container(
                     patients=db_patients,
                     rooms=db_rooms
