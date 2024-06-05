@@ -1,5 +1,5 @@
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Tuple, Union
 from enum import Enum
 # Define data classes for tables
@@ -180,9 +180,37 @@ class Database:
         return records
 
     @staticmethod
-    def read_db(db_name, table_name):
-        data = Database.fetch_all_records(db_name, table_name)
-        return data
+    def types_converter(data: dict, data_class):
+        # Get the fields and their types from the Account dataclass
+        field_types = {f.name: f.type for f in fields(data_class)}
+        
+        # Convert the values in the data dictionary to the appropriate types
+        converted_data = {}
+        for key, value in data.items():
+            if key in field_types:
+                # Convert value to the type specified in the dataclass
+                try:
+                    converted_data[key] = field_types[key](value)
+                except:
+                    print(f"Error converting {key} with value {value}, field type {field_types[key]}")
+        
+        # Create and return an instance of Account
+        return tuple(converted_data.values())
+    
+    @staticmethod
+    def read_db(db_name, table_name, convert_type=True):
+        if convert_type:
+            data_class = tablename_to_class[table_name]
+            org_db: list = Database.fetch_all_records(db_name, table_name)
+            keys = tuple(data_class.__annotations__.keys())
+            db = []
+            for entry_values in org_db:
+                data = dict(zip(keys, entry_values))
+                _db: tuple = Database.types_converter(data, data_class)
+                db.append(_db)
+        else:
+            db: tuple = Database.fetch_all_records(db_name, table_name)
+        return db 
 
     @staticmethod
     def create_default_db_account(db_name):

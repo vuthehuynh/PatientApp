@@ -111,6 +111,9 @@ class AccountApp(HydraHeadApp):
                         ## Save to db
                         keys = tuple(Account.__annotations__.keys())[1:]
                         values = (txt_user_name, txt_password, txt_access_level, txt_clinic)
+                        # data: dict = dict(zip(keys, values))
+                        # values_types = Utils.types_converter(data, Account)
+
                         db_name = DBName.ACCOUNT.value
                         table_name = TableName.ACCOUNT.value
                         Database.update_record_keys(db_name, table_name, keys, values, id=self.idx_account_db)
@@ -136,10 +139,16 @@ class AccountApp(HydraHeadApp):
                     btn_add_account = st.form_submit_button("Add Account")
                     if btn_add_account:
                         ## Save to db
+                        # keys = tuple(Account.__annotations__.keys())[1:]
                         values = (txt_add_user_name, txt_add_password, txt_add_access_level, txt_add_clinic)
+                        # _data: dict = dict(zip(keys, values))
+                        # values_types = Utils.types_converter(_data, Account)
+
                         db_name = DBName.ACCOUNT.value
                         table_name = TableName.ACCOUNT.value
-                        self.idx_added_record_db = Database.insert_record(db_name, table_name, values=values)
+                        self.idx_added_record_db = Database.insert_record(
+                            db_name, table_name, values=values
+                        )
                         st.toast("Account added successfully!")
 
                         ## Update memory (self.accounts)

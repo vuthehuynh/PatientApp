@@ -4,7 +4,7 @@ import streamlit as st
 from db import PatientInfo
 from typing import List
 from db import Database, tablename_to_class, PatientInfo
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 
 class Container:
     def __init__(self, patients, rooms):
@@ -12,6 +12,21 @@ class Container:
         self.rooms = rooms
 
 class Utils:
+    @staticmethod
+    def types_converter(data: dict, data_class):
+        # Get the fields and their types from the Account dataclass
+        field_types = {f.name: f.type for f in fields(data_class)}
+        
+        # Convert the values in the data dictionary to the appropriate types
+        converted_data = {}
+        for key, value in data.items():
+            if key in field_types:
+                # Convert value to the type specified in the dataclass
+                converted_data[key] = field_types[key](value)
+        
+        # Create and return an instance of Account
+        return tuple(converted_data.values())
+    
     @staticmethod
     def format_db_output(db: List, tablename: str, include_id=True)-> List:
         '''
