@@ -51,7 +51,6 @@ class DashboardApp(HydraHeadApp):
             # The added idx of new item in db
             self.idx_room_added_record_db = None     
             # The ids of selected rows in dataframe
-            self.ids_room_df = []
             self.ids_room_db = []
             
 
@@ -67,10 +66,10 @@ class DashboardApp(HydraHeadApp):
         # ## UI main page
         self.UI_main()
 
-    def _btn_update_rooms(self):
-        ## TODO: write update room to db
-        ## Update self.room_list
-        st.experimental_rerun()
+    # def _btn_update_rooms(self):
+    #     ## TODO: write update room to db
+    #     ## Update self.room_list
+    #     st.experimental_rerun()
 
     def _argrid_update_data(self, data: Dict):
         '''
@@ -100,27 +99,28 @@ class DashboardApp(HydraHeadApp):
                 "Grid height", min_value=200, max_value=800, value=300
             )
         with col3:
-            enable_selection = st.checkbox("Enable row selection", value=False)
+            enable_selection = st.checkbox("Enable row patient selection1", value=False)
             if enable_selection:
                 selection_mode = "multiple"
                 use_checkbox = True
                 groupSelectsChildren = True 
                 groupSelectsFiltered = True                     
-            enableUI_sidebar = st.checkbox("Enable grid sidebar", value=False)
+            enableUI_sidebar = st.checkbox("Enable grid sidebar1", value=False)
 
         st.markdown("***")
         ## UI Patient List
-        patients_df = pd.DataFrame(
-            self.patients, 
-            columns=['id'] + list( PatientInfo.__annotations__.keys())
-        )
-        gb = GridOptionsBuilder.from_dataframe(patients_df)
-        # gb.configure_column("id", hide=True)
+
+        _patients: List = [patient.__dict__ for patient in self.patients]
+        self.patients_df = pd.DataFrame(_patients, columns=PatientInfo.__annotations__.keys())
+
+        gb = GridOptionsBuilder.from_dataframe(self.patients_df)
+        gb.configure_column("id", hide=True)
+        roomlist = [room.__dict__.get("name") for room in self.rooms]
         gb.configure_column(
             "room",
             cellEditor='agSelectCellEditor', 
             cellEditorParams={
-                'values': self.rooms,
+                'values': roomlist,
                 'cellRenderer': 'ColourCellRenderer',
                 'allowTyping': True,
                 'filterList': True,
@@ -149,18 +149,29 @@ class DashboardApp(HydraHeadApp):
             gb.configure_side_bar()
         gb.configure_grid_options(domLayout="normal")
         gridOptions = gb.build()
+
         grid_return = AgGrid(
-            patients_df, 
+            self.patients_df, 
             gridOptions=gridOptions,
-            update_on=["cellClicked"],
+            update_on=["cellValueChanged"],
             fit_columns_on_grid_load=True,
             height=grid_height,
             key="patient_table",
             reload_data=True
         )
-        st.button("Update rooms", on_click=self._btn_update_rooms)
+        # st.button("Edit Patient", on_click=self._btn_edit_patient)
+        if grid_return.event_data is not None:
+            event_data = grid_return.event_data.get("data", None)  
+            event_type = grid_return.event_data.get("type", None)  
+            self.idx_patient_df: int = grid_return.event_data.get("rowIndex", None)
+            if event_data is not None:
+                self.idx_patient_db = event_data.get("id", None)
+            if event_type == "cellValueChanged":
+                converted_data = {k: v for k, v in event_data.items() if k != '__pandas_index' and k != 'id'}
+                # print(converted_data, self.idx_patient_db)
 
-        self._argrid_update_data(grid_return.event_data)
+                # patient_current = PatientInfo(**converted_data)
+                self._btn_edit_patient(tuple(converted_data.values()))
 
     def _get_id(self, selected_data: pd.DataFrame):
         if selected_data is not None:
@@ -188,7 +199,23 @@ class DashboardApp(HydraHeadApp):
             memory=self.rooms,
             classfootprint=Room
         )
-        # st.rerun()
+
+    def _btn_edit_patient(self, values: tuple):
+        ## Save to db
+        keys = tuple(PatientInfo.__annotations__.keys())[1:]
+        db_name = self.db_name
+        table_name = TableName.PATIENTINFO.value
+        update_record_keys(db_name, table_name, keys, values, id=self.idx_patient_db)
+        st.toast("Patient edited successfully!")
+
+        ## Save to memory (self.accounts)
+        self.patients = self._update_to_memory(
+            data=dict(zip(keys, values)),
+            input_df=self.rooms_df,
+            idx_df=self.idx_patient_df,
+            memory=self.patients,
+            classfootprint=PatientInfo
+        )
 
     def _btn_add_room_func(self, txt_add_room):
         ## Save to db
@@ -324,9 +351,7 @@ class DashboardApp(HydraHeadApp):
                 if event_type == "selectionChanged":
                     rows_data: pd.DataFrame = grid_return.selected_rows
                     rows: List = rows_data.to_dict(orient='records')
-                    self.ids_room_df = rows_data.index.tolist()
                     self.ids_room_db = [_row.get("id") for _row in rows]
-                    print(f"ids_room_df: {self.ids_room_df}")
                     print(f"ids_room_db: {self.ids_room_db}")
             txt_edit_room = st.text_input(" ", value=self.room_current.get('name', ''), key='edit_room')
             values = (txt_edit_room)
@@ -417,17 +442,17 @@ class DashboardApp(HydraHeadApp):
         ## UI Sidebar
         self.UI_sidebar()
 
-        # col_layout, col_editor = st.columns([4, 2])
-        # ## UI Patients Editor
-        # with col_editor:
-        #     if not 'visible' in st.session_state:
-        #         st.session_state.visible = False
-        #     def toggle():
-        #         st.session_state.visible = not st.session_state.visible
-        #     btn_toggle = st.button("Toggle", on_click=toggle)
+        col_layout, col_editor = st.columns([4, 4])
+        ## UI Patients Editor
+        with col_editor:
+            if not 'visible' in st.session_state:
+                st.session_state.visible = False
+            def toggle():
+                st.session_state.visible = not st.session_state.visible
+            btn_toggle = st.button("Toggle", on_click=toggle)
                 
-        #     with st.expander("Room Editor", expanded=st.session_state.visible):
-        #         self.UI_patients_editor()
+            with st.expander("Room Editor", expanded=st.session_state.visible):
+                self.UI_patients_editor()
 
 
         # with col_layout:

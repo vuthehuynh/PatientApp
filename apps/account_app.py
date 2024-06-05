@@ -32,7 +32,6 @@ class AccountApp(HydraHeadApp):
             # The added idx of new item in db
             self.idx_added_record_db = None     
             # The ids of selected rows in dataframe
-            self.ids_df = []
             self.ids_db = []
 
     def run(self):
@@ -93,7 +92,6 @@ class AccountApp(HydraHeadApp):
                 if event_type == "selectionChanged":
                     rows_data: pd.DataFrame = grid_return.selected_rows
                     rows: List = rows_data.to_dict(orient='records')
-                    self.ids_df = rows_data.index.tolist()
                     self.ids_db = [_row.get("id") for _row in rows]
 
         with col_account_edit:
