@@ -14,7 +14,7 @@ from db import (
     insert_record,
 )
 from collections import defaultdict
-from utils import sidebar_logo
+from utils import sidebar_logo, Utils
 from typing import List, Dict 
 from utils import Container
 class DashboardApp(HydraHeadApp):

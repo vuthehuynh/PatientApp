@@ -123,14 +123,14 @@ if __name__ == '__main__':
     # completely optional, but if you have too many entries, you can make it nicer by using accordian menus
     if user_access_level == 1:
         complex_nav = {
-            # 'Dashboard': ['Dashboard'],
+            'Dashboard': ['Dashboard'],
             'Receive': ['Receive'],
             'Account': ['Account'],
             
         }
     else:
         complex_nav = {
-            # 'Dashboard': ['Dashboard'],
+            'Dashboard': ['Dashboard'],
             'Receive': ['Receive'],
         }
 
