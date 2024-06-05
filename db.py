@@ -21,6 +21,7 @@ class Room:
 
 @dataclass
 class PatientInfo:
+    id: int 
     room: str
     bed: str
     city: str
@@ -192,10 +193,10 @@ def create_default_db_patient(db_name):
     # Table patient_info
     table_fields = [
         "id INTEGER PRIMARY KEY", 
-        "room TEXT", 
-        "bed TEXT", 
-        "city TEXT", 
-        "district TEXT"
+        "room VARCHAR(50)", 
+        "bed VARCHAR(50)", 
+        "city VARCHAR(50)", 
+        "district VARCHAR(50)"
     ]
     table_name = TableName.PATIENTINFO.value    
     create_table(db_name, table_name, table_fields)

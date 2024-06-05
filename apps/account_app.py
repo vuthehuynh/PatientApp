@@ -21,14 +21,16 @@ class AccountApp(HydraHeadApp):
         self.accounts: List[Account] = db
         self.clinics = self._load_clinics()
         self.account_current = self._init_account_data()
-        self.idx_account_db = None 
+         
 
         if not 'init' in st.session_state:
+            # idx of account db when selected
+            self.idx_account_db = None
             st.session_state.init = True
             # selected idx of dataframe 
             self.idx_df = None 
-            # The last idx of the db 
-            self.idx_db = None     
+            # The added idx of new item in db
+            self.idx_added_record_db = None     
             # The ids of selected rows in dataframe
             self.ids_df = []
             self.ids_db = []
@@ -52,9 +54,9 @@ class AccountApp(HydraHeadApp):
         
         st.markdown("***")
         st.header('Accounts')
-        UI_account = st.columns([1,1])
+        col_account_view, col_account_edit = st.columns([1,1])
 
-        with UI_account[0]:
+        with col_account_view:
 
             _accounts: List = [account.__dict__ for account in self.accounts]
             self.account_df: pd.DataFrame = pd.DataFrame(_accounts, columns=Account.__annotations__.keys())
@@ -94,7 +96,7 @@ class AccountApp(HydraHeadApp):
                     self.ids_df = rows_data.index.tolist()
                     self.ids_db = [_row.get("id") for _row in rows]
 
-        with UI_account[1]:
+        with col_account_edit:
             tab_edit_account, tab_add_account = st.tabs(["Edit Account", "Add Account"])
             with tab_edit_account:
                 with st.form("Edit Account", border=True):
@@ -108,8 +110,8 @@ class AccountApp(HydraHeadApp):
                         index_clinic = 0
                     txt_clinic = st.selectbox(("Clinic"), options=self.clinics, index=index_clinic, key='edit_acc_clinic')
 
-                    btn_submitted = st.form_submit_button("Edit Account")
-                    if btn_submitted:
+                    btn_edit_account = st.form_submit_button("Edit Account")
+                    if btn_edit_account:
                         ## Save to db
                         keys = tuple(Account.__annotations__.keys())[1:]
                         values = (txt_user_name, txt_password, txt_access_level, txt_clinic)
@@ -135,18 +137,18 @@ class AccountApp(HydraHeadApp):
                     txt_add_access_level = st.text_input("Access Level", key='add_acc_access_level')
                     txt_add_clinic = st.text_input("Clinic", key='add_acc_clinic')
 
-                    btn_submitted = st.form_submit_button("Add Account")
-                    if btn_submitted:
+                    btn_add_account = st.form_submit_button("Add Account")
+                    if btn_add_account:
                         ## Save to db
                         values = (txt_add_user_name, txt_add_password, txt_add_access_level, txt_add_clinic)
                         db_name = DBName.ACCOUNT.value
                         table_name = TableName.ACCOUNT.value
-                        self.idx_db = insert_record(db_name, table_name, values=values)
+                        self.idx_added_record_db = insert_record(db_name, table_name, values=values)
                         st.toast("Account added successfully!")
 
                         ## Update memory (self.accounts)
                         keys = tuple(Account.__annotations__.keys())
-                        values = tuple([self.idx_db]) + values
+                        values = tuple([self.idx_added_record_db]) + values
 
                         self.accounts = self._add_to_memory(
                             data=dict(zip(keys, values)),

@@ -2,15 +2,17 @@ import streamlit as st
 from hydralit import HydraHeadApp
 import pandas as pd
 import datetime
+from dataclasses import dataclass
 from db import (
     PatientInfo,
     DBName,
     TableName,
     tablename_to_class,
+    delete_records,
     update_record_keys,
     insert_record,
 )
-from utils import sidebar_logo
+from utils import sidebar_logo, Utils
 from collections import defaultdict
 from st_aggrid import AgGrid, GridOptionsBuilder
 from typing import List, Dict
@@ -19,16 +21,29 @@ class ReceiveApp(HydraHeadApp):
     def __init__(self, title = '', db: Container = None, app_state = None, **kwargs):
         self.__dict__.update(kwargs)
         self.title = title
-        self.edited_data = defaultdict(dict)
+        # self.edited_data = defaultdict(dict)
         self.patient_idx_selected = None
-        self.patient: Dict = self._init_patient(is_remove_idx=False)
+        self.patient_current: Dict = self._init_patient(is_remove_idx=False)
         if app_state is not None:
             self.user = app_state.username
             self.clinic = app_state.clinic
             self.login = True 
             self.db_name = f"{self.clinic}_patient.db"
-            self.db: Container = db
-            print(f"Loaded {len(self.db.patients)} patients")
+            self.patients: List[PatientInfo] = db.patients
+            print(f"Loaded {len(self.patients)} patients")
+
+        if not 'init' in st.session_state:
+            # idx of account db when selected
+            self.idx_patient_db = None
+            st.session_state.init = True
+            # selected idx of dataframe 
+            self.idx_df = None 
+            # The added idx of new item in db
+            self.idx_added_record_db = None     
+            # The ids of selected rows in dataframe
+            self.ids_df = []
+            self.ids_db = []
+            
 
     def run(self):
         ## Side bar
@@ -36,13 +51,11 @@ class ReceiveApp(HydraHeadApp):
         sidebar_logo(logo_url)
         st.sidebar.markdown("***")
         st.sidebar.title("Legal Records")
-        page = st.sidebar.radio("Receiving Patient", options=["Patient Info", "Contact"])
+        page = st.sidebar.radio("Receiving Patient", options=["Patient Info"])
         
         ## Page select
         if page == "Patient Info":
             self.page_receiving_patients()
-        elif page == "Contact":
-            self.page_contact()
 
 
     def page_receiving_patients(self):
@@ -51,41 +64,37 @@ class ReceiveApp(HydraHeadApp):
             self._tab_patient_edit()
 
         with tab_patient:
-            self._tab_patient()
-
-    def page_contact(self):
-        st.title("Contact Page")
-        st.write("You can contact us here")    
+            self._tab_patient_add()  
 
 
-    def _data_editor_changed(self):
-        edited_rows = st.session_state.ed["edited_rows"]
-        if edited_rows is not None:
-            for row_id, data in edited_rows.items():
-                keys = list(data.keys())
-                values = list(data.values())
-                st.write(f"edited row: {row_id} keys {keys} values {values}")   
-                self.edited_data[row_id] = [keys, values]
+    # def _data_editor_changed(self):
+    #     edited_rows = st.session_state.ed["edited_rows"]
+    #     if edited_rows is not None:
+    #         for row_id, data in edited_rows.items():
+    #             keys = list(data.keys())
+    #             values = list(data.values())
+    #             st.write(f"edited row: {row_id} keys {keys} values {values}")   
+    #             self.edited_data[row_id] = [keys, values]
 
-    def _save_to_db(self, patient_info):
-        print(f"Saving data {self.edited_data}")
-        for row_id, data in self.edited_data.items():
-            keys, values = data
-            table_name = TableName.PATIENT_INFO.value
+    # def _save_to_db(self, patient_info):
+    #     print(f"Saving data {self.edited_data}")
+    #     for row_id, data in self.edited_data.items():
+    #         keys, values = data
+    #         table_name = TableName.PATIENT_INFO.value
             
-            try:
-                print(f"Saving data: {keys} {values} {row_id}")
-                update_record_keys(self.db_name, table_name, keys, values, id=row_id)
-                st.success("Data saved")
-            except Exception as e:
-                st.error(f"Error saving db: {e}")
-        st.session_state.patient_info = patient_info
+    #         try:
+    #             print(f"Saving data: {keys} {values} {row_id}")
+    #             update_record_keys(self.db_name, table_name, keys, values, id=row_id)
+    #             st.success("Data saved")
+    #         except Exception as e:
+    #             st.error(f"Error saving db: {e}")
+    #     st.session_state.patient_info = patient_info
 
-    def _save_to_db1(self, patient_info):
-        with st.popover("Save Changes"):
-            pp_save = st.radio("Do you want to save?", ["No", "Yes"], index=0)
-            if pp_save == 'Yes':
-                self._save_to_db(patient_info)
+    # def _save_to_db1(self, patient_info):
+    #     with st.popover("Save Changes"):
+    #         pp_save = st.radio("Do you want to save?", ["No", "Yes"], index=0)
+    #         if pp_save == 'Yes':
+    #             self._save_to_db(patient_info)
 
     def _init_patient(self, is_remove_idx=True):
         patient: Dict = {}
@@ -94,8 +103,8 @@ class ReceiveApp(HydraHeadApp):
             patient[key] = ""
         return patient    
     
-    def _tab_patient(self):
-        with st.form(key="patient_edit"):
+    def _tab_patient_add(self):
+        with st.form(key="patient_add"):
             r10, r11, r12, r14 = st.columns([1, 1, 1, 1])
             with r10: txt_BN_code = st.text_input("BN Code", placeholder="Enter BN Code")
             with r11: 
@@ -112,9 +121,9 @@ class ReceiveApp(HydraHeadApp):
             with r31: txt_shortcut_address = st.text_input("Shortcut address", placeholder="Enter the type off address")
             r40, r41 = st.columns([1, 1])
             with r40: txt_city = st.text_input("city", placeholder="Enter city",
-                                               value=self.patient.get("city", ""),key="txt_city_receive")
+                                               value=self.patient_current.get("city", ""),key="txt_city_receive")
             with r41: txt_district = st.text_input("district", placeholder="Enter district",
-                                               value=self.patient.get("district", ""), key="txt_district_receive")
+                                               value=self.patient_current.get("district", ""), key="txt_district_receive")
                                 
             r50, r51 = st.columns([1, 1])
             with r50: txt_ward = st.text_input("ward", placeholder="Enter ward")
@@ -122,34 +131,104 @@ class ReceiveApp(HydraHeadApp):
             r60, r61 = st.columns([1, 1])
             with r60: txt_id_number = st.text_input("id_number", placeholder="Enter id_number")
             with r61: txt_job = st.text_input("job", placeholder="Enter job")
-            submitted = st.form_submit_button("Add Patient")
-            if submitted:
-                # Write data here
-                st.write("Form submitted")
-                patient_info = PatientInfo(
-                    city=txt_city,
-                    district=txt_district,
+            btn_add_patient = st.form_submit_button("Add Patient")
+            btn_edit_patient = st.form_submit_button("Edit Patient")
+            if btn_add_patient:
+                ## Save to db
+                values = ("", "", txt_city, txt_district)
+                db_name = self.db_name
+                table_name = TableName.PATIENTINFO.value
+                self.idx_added_record_db = insert_record(db_name, table_name, values=values)
+                st.toast("Patient added successfully!")
+
+                ## Update memory (self.accounts)
+                keys = tuple(PatientInfo.__annotations__.keys())
+                values = tuple([self.idx_added_record_db]) + values
+
+                self.patients = self._add_to_memory(
+                    data=dict(zip(keys, values)),
+                    memory=self.patients,
+                    classfootprint=PatientInfo
                 )
-                values = ('', '', patient_info.city, patient_info.district)
-                try:
-                    table_name = TableName.PATIENTINFO.value
-                    insert_record(self.db_name, table_name, values)
-                    st.success("Data saved to DB")
-                except Exception as e:
-                    st.error(f"Error saving db: {e}")
-                st.experimental_rerun()
+                st.rerun()
+
+            if btn_edit_patient:
+                keys = tuple(PatientInfo.__annotations__.keys())[1:]
+                values = ("", "", txt_city, txt_district)
+                db_name = self.db_name
+                table_name = TableName.PATIENTINFO.value
+                update_record_keys(db_name, table_name, keys, values, id=self.idx_patient_db)
+                st.toast("Patient edited successfully!")
+
+                ## Save to memory (self.accounts)
+                self.patients = self._update_patient_to_memory(
+                    data=dict(zip(keys, values)),
+                    input_df=self.patients_df,
+                    idx_df=self.idx_df,
+                    memory=self.patients,
+                    classfootprint=PatientInfo
+                )
+                st.rerun()
 
     def _btn_delete_selected(self):
-        if self.selected_ids is not None:
-            table_name = TableName.PATIENTINFO.value
-            self.db.delete_records(self.db_name, table_name, ids=self.selected_ids)
-            st.success("Deleted successfully")
-        else:
-            st.warning("No row selected")
+        '''
+        Deleted selected account
+        '''
+        ## Delete from db
+        db_name = DBName.ACCOUNT.value
+        table_name = TableName.ACCOUNT.value
+        delete_records(db_name, table_name, ids=self.ids_db)
 
+        ## Delete from memory 
+        self.patients = self._delete_from_memory(
+            ids_db=self.ids_db,
+            memory=self.patients
+        )
+    def _delete_from_memory(
+            self, 
+            ids_db: dict,
+            memory: list,
+        )-> list:
+            '''
+            ids_db: idx of rows in db
+            '''
+            new_memory = [
+                account for account in memory if str(account.id) not in ids_db
+            ]
+                
+            return new_memory
+        
+    def _add_to_memory(
+            self, 
+            data: dict,
+            memory: List,
+            classfootprint: dataclass = PatientInfo
+        )-> List:
+
+            add_account = classfootprint(**data)
+            memory.append(add_account)
+
+            return memory
+    
+    def _update_patient_to_memory(
+            self, 
+            data: dict,
+            input_df: pd.DataFrame,
+            idx_df: int,
+            memory: List,
+            classfootprint: dataclass = PatientInfo
+        )-> List:
+            
+            mod_account_df: dict = input_df.iloc[idx_df].to_dict()
+            mod_account_df = Utils.assign_dict_to_dict(mod_account_df, data)
+            _id1 = mod_account_df.get('id', None)
+            _id2 = [idx for idx, account in enumerate(memory) if account.id == _id1]
+            if _id2:
+                memory[_id2[0]] = classfootprint(**mod_account_df)
+            return memory
+    
     def _tab_patient_edit(self):
         ## UI expander
-        # with st.expander("Patient View Options"):
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:    
             n_rows = st.number_input("rows", min_value=10, value=30)
@@ -168,9 +247,10 @@ class ReceiveApp(HydraHeadApp):
 
         st.markdown("***")
         ## UI Patient List
-        patients_df = pd.DataFrame(self.db.patients, columns=['id'] + list( PatientInfo.__annotations__.keys()))
+        _patients: List = [account.__dict__ for account in self.patients]
+        self.patients_df = pd.DataFrame(_patients, columns=PatientInfo.__annotations__.keys())
 
-        gb = GridOptionsBuilder.from_dataframe(patients_df)
+        gb = GridOptionsBuilder.from_dataframe(self.patients_df)
         # gb.configure_column("id", hide=True)
         gb.configure_default_column(
             groupable=True, value=True, enableRowGroup=True, aggFunc="sum", editable=False
@@ -190,7 +270,7 @@ class ReceiveApp(HydraHeadApp):
         gb.configure_grid_options(domLayout="normal")
         gridOptions = gb.build()
         grid_return = AgGrid(
-            patients_df, 
+            self.patients_df, 
             gridOptions=gridOptions,
             update_on=["cellClicked"],
             fit_columns_on_grid_load=True,
@@ -201,14 +281,17 @@ class ReceiveApp(HydraHeadApp):
         st.button("Delete selected", on_click=self._btn_delete_selected)
 
         if grid_return.event_data is not None:
-            _patient_selected = grid_return.event_data.get("data", None)  
-            if _patient_selected is not None:
-                self.patient_idx_selected = _patient_selected.get("id", None)
-                for k,v in self.patient.items():
-                    self.patient[k] = _patient_selected[k]
-
-        selected_data = grid_return["selected_rows"]
-        self.selected_ids = self._get_id(selected_data)
+            event_data = grid_return.event_data.get("data", None)  
+            event_type = grid_return.event_data.get("type", None)  
+            self.idx_df: int = grid_return.event_data.get("rowIndex", None)
+            if event_data is not None:
+                self.idx_patient_db = event_data.get("id", None)
+                self.patient_current = Utils.assign_dict_to_dict(self.patient_current, event_data)
+            if event_type == "selectionChanged":
+                rows_data: pd.DataFrame = grid_return.selected_rows
+                rows: List = rows_data.to_dict(orient='records')
+                self.ids_df = rows_data.index.tolist()
+                self.ids_db = [_row.get("id") for _row in rows]
 
     def _get_id(self, selected_data: pd.DataFrame):
         if selected_data is not None:
@@ -221,12 +304,20 @@ class ReceiveApp(HydraHeadApp):
 
 if __name__ == "__main__":
     from dataclasses import dataclass
-    from utils import read_db
+    from db import read_db
     @dataclass 
     class AppState:
         username: str
         clinic: str
     app_state = AppState(username="huynh", clinic="PK2")
-    db_patients = read_db(db_name=f"{app_state.clinic}_patient.db", db_table=TableName.ACCOUNT.value)
-    patient = ReceiveApp(title="Receive", db=db_patients, app_state=app_state)
+    db_name = f"PK2_patient.db"
+    _db_patients = read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
+    db_patients: List[PatientInfo] = Utils.format_db_output(_db_patients, TableName.PATIENTINFO.value)
+    
+    db_rooms = read_db(db_name=db_name, table_name=TableName.ROOM.value)
+    container = Container(
+        patients=db_patients,
+        rooms=db_rooms
+    )
+    patient = ReceiveApp(title="Receive", db=container, app_state=app_state)
     patient.run()

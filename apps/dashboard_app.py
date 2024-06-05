@@ -34,7 +34,7 @@ class DashboardApp(HydraHeadApp):
             self.patient_df = {}
 
             print(f"Dashboard login: {self.login}")
-            print(f"Loaded {len(self.db.patients)} patients")
+            print(f"Loaded {len(self.patients)} patients")
             print(f"Loaded {len(self.db.rooms)} rooms")            
         else:
             self.login = False
@@ -72,7 +72,7 @@ class DashboardApp(HydraHeadApp):
             rowIdx: int = data.get("rowIndex", None)
             if event_type == 'cellValueChanged':
                 converted_data = {k: v for k, v in event_data.items() if k != '__pandas_index'}
-                self.db.patients[rowIdx] = tuple(converted_data.values())
+                self.patients[rowIdx] = tuple(converted_data.values())
             ## TODO write to db
 
     def UI_patients_editor(self):
@@ -95,7 +95,7 @@ class DashboardApp(HydraHeadApp):
         st.markdown("***")
         ## UI Patient List
         patients_df = pd.DataFrame(
-            self.db.patients, 
+            self.patients, 
             columns=['id'] + list( PatientInfo.__annotations__.keys())
         )
         gb = GridOptionsBuilder.from_dataframe(patients_df)
@@ -171,7 +171,7 @@ class DashboardApp(HydraHeadApp):
         st.toast("Room edited successfully!")
 
     def _get_patients_df(self):
-        patients_db: List = self.db.patients
+        patients_db: List = self.patients
         patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
         return patients_df
 
@@ -240,7 +240,7 @@ class DashboardApp(HydraHeadApp):
                 btn_add_room = st.form_submit_button("Add Room", on_click=self._btn_add_room_func,args=(txt_add_room))        
 
     def UI_layout(self):
-        patients_db: List = self.db.patients
+        patients_db: List = self.patients
         patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
         patients: List[Dict] = patients_df.to_dict(orient="records")
         room_data: Dict = self._make_room_data(patients)

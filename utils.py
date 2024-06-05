@@ -3,11 +3,12 @@ import base64
 import streamlit as st
 from db import PatientInfo
 from typing import List
-from db import fetch_all_records, tablename_to_class
+from db import fetch_all_records, tablename_to_class, PatientInfo
 from dataclasses import dataclass
+
 class Container:
     def __init__(self, patients, rooms):
-        self.patients = patients
+        self.patients: List[PatientInfo] = patients
         self.rooms = rooms
 
 class Utils:
