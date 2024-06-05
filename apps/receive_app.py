@@ -4,13 +4,10 @@ import pandas as pd
 import datetime
 from dataclasses import dataclass
 from db import (
+    Database,
     PatientInfo,
     DBName,
-    TableName,
-    tablename_to_class,
-    delete_records,
-    update_record_keys,
-    insert_record,
+    TableName
 )
 from utils import sidebar_logo, Utils
 from collections import defaultdict
@@ -105,7 +102,7 @@ class ReceiveApp(HydraHeadApp):
                 values = ("", "", txt_city, txt_district)
                 db_name = self.db_name
                 table_name = TableName.PATIENTINFO.value
-                self.idx_added_record_db = insert_record(db_name, table_name, values=values)
+                self.idx_added_record_db = Database.insert_record(db_name, table_name, values=values)
                 st.toast("Patient added successfully!")
 
                 ## Update memory (self.accounts)
@@ -124,7 +121,7 @@ class ReceiveApp(HydraHeadApp):
                 values = ("", "", txt_city, txt_district)
                 db_name = self.db_name
                 table_name = TableName.PATIENTINFO.value
-                update_record_keys(db_name, table_name, keys, values, id=self.idx_patient_db)
+                Database.update_record_keys(db_name, table_name, keys, values, id=self.idx_patient_db)
                 st.toast("Patient edited successfully!")
 
                 ## Save to memory (self.accounts)
@@ -144,7 +141,7 @@ class ReceiveApp(HydraHeadApp):
         ## Delete from db
         db_name = DBName.ACCOUNT.value
         table_name = TableName.ACCOUNT.value
-        delete_records(db_name, table_name, ids=self.ids_db)
+        Database.delete_records(db_name, table_name, ids=self.ids_db)
 
         ## Delete from memory 
         self.patients = self._delete_from_memory(
@@ -270,17 +267,17 @@ class ReceiveApp(HydraHeadApp):
 
 if __name__ == "__main__":
     from dataclasses import dataclass
-    from db import read_db
+    from db import read_db, Database
     @dataclass 
     class AppState:
         username: str
         clinic: str
     app_state = AppState(username="huynh", clinic="PK2")
     db_name = f"PK2_patient.db"
-    _db_patients = read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
+    _db_patients = Database.read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
     db_patients: List[PatientInfo] = Utils.format_db_output(_db_patients, TableName.PATIENTINFO.value)
     
-    db_rooms = read_db(db_name=db_name, table_name=TableName.ROOM.value)
+    db_rooms = Database.read_db(db_name=db_name, table_name=TableName.ROOM.value)
     container = Container(
         patients=db_patients,
         rooms=db_rooms

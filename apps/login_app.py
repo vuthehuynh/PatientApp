@@ -3,10 +3,10 @@ from typing import Dict
 import streamlit as st
 from hydralit import HydraHeadApp
 from db import (
+    Database,
     Account,
     DBName,
     TableName,
-    fetch_all_records
 )
 from utils import hash_password, set_background
 from typing import Dict, List 
@@ -21,7 +21,7 @@ class LoginApp(HydraHeadApp):
     def __init__(self, title = '', db =None, **kwargs):
         self.__dict__.update(kwargs)
         self.title = title
-        self.db_account: List[Dict] = db
+        self.db_account: List[Account] = db
 
     def run(self) -> None:
         """
@@ -97,12 +97,7 @@ class LoginApp(HydraHeadApp):
 
 
     def _check_login(self, login_data) -> int:
-        # for data_item in self.db_account:
-        #     account: Account = Account(*data_item[1:])
-        #     if account.username == login_data['username'] and account.password == login_data['password']:
-        #         return account.access_level, account.clinic
         for account in self.db_account:
-            # account: Account = Account(*data_item[1:])
             if account.username == login_data['username'] and account.password == login_data['password']:
                 return account.access_level, account.clinic            
         return 0, None

@@ -8,7 +8,7 @@ from db import (
     Account,
     DBName,
     TableName,
-    insert_record
+    Database
 )
 class SignUpApp(HydraHeadApp):
     """
@@ -109,5 +109,5 @@ class SignUpApp(HydraHeadApp):
         values = (account.username, account.password, account.access_level)
         db_name = DBName.ACCOUNT.value
         table_name = TableName.ACCOUNT.value
-        insert_record(db_name, table_name, values=values)
+        Database.insert_record(db_name, table_name, values=values)
 

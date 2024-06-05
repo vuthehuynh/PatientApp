@@ -4,9 +4,7 @@ from hydralit import HydraHeadApp
 import pandas as pd
 from db import (
     Account,
-    insert_record,
-    update_record_keys,
-    delete_records,
+    Database,
     TableName,
     DBName
 )
@@ -115,7 +113,7 @@ class AccountApp(HydraHeadApp):
                         values = (txt_user_name, txt_password, txt_access_level, txt_clinic)
                         db_name = DBName.ACCOUNT.value
                         table_name = TableName.ACCOUNT.value
-                        update_record_keys(db_name, table_name, keys, values, id=self.idx_account_db)
+                        Database.update_record_keys(db_name, table_name, keys, values, id=self.idx_account_db)
                         st.toast("Account edited successfully!")
 
                         ## Save to memory (self.accounts)
@@ -141,7 +139,7 @@ class AccountApp(HydraHeadApp):
                         values = (txt_add_user_name, txt_add_password, txt_add_access_level, txt_add_clinic)
                         db_name = DBName.ACCOUNT.value
                         table_name = TableName.ACCOUNT.value
-                        self.idx_added_record_db = insert_record(db_name, table_name, values=values)
+                        self.idx_added_record_db = Database.insert_record(db_name, table_name, values=values)
                         st.toast("Account added successfully!")
 
                         ## Update memory (self.accounts)
@@ -218,7 +216,7 @@ class AccountApp(HydraHeadApp):
         ## Delete from db
         db_name = DBName.ACCOUNT.value
         table_name = TableName.ACCOUNT.value
-        delete_records(db_name, table_name, ids=self.ids_db)
+        Database.delete_records(db_name, table_name, ids=self.ids_db)
 
         ## Delete from memory 
         self.accounts = self._delete_from_memory(
@@ -256,15 +254,15 @@ class AccountApp(HydraHeadApp):
     
 if __name__ == "__main__":
     from dataclasses import dataclass
-    from db import read_db, create_default_db_account
+    from db import Database, TableName
     @dataclass 
     class AppState:
         username: str
         clinic: str
     app_state = AppState(username="huynh", clinic="PK2")
     db_name = 'account.db'
-    create_default_db_account(db_name)
-    _db_account = read_db(db_name=db_name, table_name=TableName.ACCOUNT.value)  
+    Database.create_default_db_account(db_name)
+    _db_account = Database.read_db(db_name=db_name, table_name=TableName.ACCOUNT.value)  
     db_account: List[Account] = Utils.format_db_output(_db_account, TableName.ACCOUNT.value)
     patient = AccountApp(title="Account", db=db_account, app_state=app_state)
     patient.run()
