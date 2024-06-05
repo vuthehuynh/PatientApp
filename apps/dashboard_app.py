@@ -31,7 +31,7 @@ class DashboardApp(HydraHeadApp):
             self.patients: List[PatientInfo] = db.patients
 
             self.grid_return = defaultdict(list)
-            self.patient_df = {}
+            self.patient_room_df = {}
             print(f"Dashboard login: {self.login}")
 
         else:
@@ -204,7 +204,7 @@ class DashboardApp(HydraHeadApp):
         ## Save to memory (self.accounts)
         self.patients = self._update_to_memory(
             data=dict(zip(keys, values)),
-            input_df=self.rooms_df,
+            input_df=self.patients_df,
             idx_df=self.idx_patient_df,
             memory=self.patients,
             classfootprint=PatientInfo
@@ -258,11 +258,6 @@ class DashboardApp(HydraHeadApp):
             memory.append(add_account)
 
             return memory
-    
-    def _get_patients_df(self):
-        patients_db: List = self.patients
-        patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
-        return patients_df
 
     def _make_room_data(self, patients: List) -> Dict:
         '''
@@ -410,14 +405,14 @@ class DashboardApp(HydraHeadApp):
                         st.markdown(f"**{self.roomlist[idx]}**")
                         _patients = self.room_list[idx].get('patients', [])
                         
-                        self.patient_df[idx] = pd.DataFrame(
+                        self.patient_room_df[idx] = pd.DataFrame(
                             _patients
                         )
-                        gd = GridOptionsBuilder().from_dataframe(self.patient_df[idx])
+                        gd = GridOptionsBuilder().from_dataframe(self.patient_room_df[idx])
                         gd.configure_column('id', hide=True)
                         go = gd.build()
                         self.grid_return[idx] = AgGrid(
-                            self.patient_df[idx], 
+                            self.patient_room_df[idx], 
                             gridOptions=go,
                             update_on=["cellClicked"],
                             fit_columns_on_grid_load=False,
