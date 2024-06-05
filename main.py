@@ -6,6 +6,7 @@ import apps.dashboard_app
 from db import (
     TableName, 
     Account,
+    PatientInfo,
     create_default_db_account, 
     create_default_db_patient, 
     read_db
@@ -91,7 +92,8 @@ if __name__ == '__main__':
                 
                 logger.info(f"Start loading database {db_name}")
                 create_default_db_patient(db_name)
-                db_patients = read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
+                _db_patients = read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
+                db_patients: List[PatientInfo] = Utils.format_db_output(_db_patients, TableName.PATIENTINFO.value)
                 db_rooms = read_db(db_name=db_name, table_name=TableName.ROOM.value)
                 container = Container(
                     patients=db_patients,
@@ -102,7 +104,6 @@ if __name__ == '__main__':
 
             else:
                 container = app.session_state.loaded_db
-            db_manager = "PK2_patient.db"
             app.add_app("Receive", icon="📚", app=apps.ReceiveApp(title="Receive", db=container, app_state=app.session_state))
             app.add_app("Dashboard", icon="📚", app=apps.DashboardApp(db=container, app_state=app.session_state))            
         else:
@@ -120,14 +121,14 @@ if __name__ == '__main__':
     # completely optional, but if you have too many entries, you can make it nicer by using accordian menus
     if user_access_level == 1:
         complex_nav = {
-            'Dashboard': ['Dashboard'],
+            # 'Dashboard': ['Dashboard'],
             'Receive': ['Receive'],
             'Account': ['Account'],
             
         }
     else:
         complex_nav = {
-            'Dashboard': ['Dashboard'],
+            # 'Dashboard': ['Dashboard'],
             'Receive': ['Receive'],
         }
 

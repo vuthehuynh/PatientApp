@@ -21,8 +21,6 @@ class ReceiveApp(HydraHeadApp):
     def __init__(self, title = '', db: Container = None, app_state = None, **kwargs):
         self.__dict__.update(kwargs)
         self.title = title
-        # self.edited_data = defaultdict(dict)
-        self.patient_idx_selected = None
         self.patient_current: Dict = self._init_patient(is_remove_idx=False)
         if app_state is not None:
             self.user = app_state.username
@@ -65,36 +63,6 @@ class ReceiveApp(HydraHeadApp):
 
         with tab_patient:
             self._tab_patient_add()  
-
-
-    # def _data_editor_changed(self):
-    #     edited_rows = st.session_state.ed["edited_rows"]
-    #     if edited_rows is not None:
-    #         for row_id, data in edited_rows.items():
-    #             keys = list(data.keys())
-    #             values = list(data.values())
-    #             st.write(f"edited row: {row_id} keys {keys} values {values}")   
-    #             self.edited_data[row_id] = [keys, values]
-
-    # def _save_to_db(self, patient_info):
-    #     print(f"Saving data {self.edited_data}")
-    #     for row_id, data in self.edited_data.items():
-    #         keys, values = data
-    #         table_name = TableName.PATIENT_INFO.value
-            
-    #         try:
-    #             print(f"Saving data: {keys} {values} {row_id}")
-    #             update_record_keys(self.db_name, table_name, keys, values, id=row_id)
-    #             st.success("Data saved")
-    #         except Exception as e:
-    #             st.error(f"Error saving db: {e}")
-    #     st.session_state.patient_info = patient_info
-
-    # def _save_to_db1(self, patient_info):
-    #     with st.popover("Save Changes"):
-    #         pp_save = st.radio("Do you want to save?", ["No", "Yes"], index=0)
-    #         if pp_save == 'Yes':
-    #             self._save_to_db(patient_info)
 
     def _init_patient(self, is_remove_idx=True):
         patient: Dict = {}
