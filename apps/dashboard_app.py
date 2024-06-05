@@ -29,6 +29,7 @@ class DashboardApp(HydraHeadApp):
             self.login = True 
             self.db_name = f"{self.clinic}_patient.db"
             self.rooms: List[Room] = db.rooms
+            self.roomlist = [room.__dict__.get("name") for room in self.rooms]
             self.room_current: dict = {'name': ''}
             self.patients: List[PatientInfo] = db.patients
 
@@ -65,11 +66,6 @@ class DashboardApp(HydraHeadApp):
 
         # ## UI main page
         self.UI_main()
-
-    # def _btn_update_rooms(self):
-    #     ## TODO: write update room to db
-    #     ## Update self.room_list
-    #     st.experimental_rerun()
 
     def _argrid_update_data(self, data: Dict):
         '''
@@ -115,12 +111,12 @@ class DashboardApp(HydraHeadApp):
 
         gb = GridOptionsBuilder.from_dataframe(self.patients_df)
         gb.configure_column("id", hide=True)
-        roomlist = [room.__dict__.get("name") for room in self.rooms]
+        # roomlist = [room.__dict__.get("name") for room in self.rooms]
         gb.configure_column(
             "room",
             cellEditor='agSelectCellEditor', 
             cellEditorParams={
-                'values': roomlist,
+                'values': self.roomlist,
                 'cellRenderer': 'ColourCellRenderer',
                 'allowTyping': True,
                 'filterList': True,
@@ -280,7 +276,8 @@ class DashboardApp(HydraHeadApp):
           }
         '''
         room_data = {}
-        for room in self.rooms:
+        # roomlist = [room.__dict__.get("name") for room in self.rooms]
+        for room in self.roomlist:
             room_data[room] = []
         for patient in patients:
             room = patient.get('room', None)
@@ -389,12 +386,16 @@ class DashboardApp(HydraHeadApp):
             return new_memory
     
     def UI_layout(self):
-        patients_db: List = self.patients
-        patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
+        # patients_db: List = self.patients
+        # patients_df = pd.DataFrame(patients_db, columns=['id'] + list( PatientInfo.__annotations__.keys()))
+
+        _patients: List = [patient.__dict__ for patient in self.patients]
+        patients_df = pd.DataFrame(_patients, columns=PatientInfo.__annotations__.keys())
+        print(f"patients_df: {patients_df}")
         patients: List[Dict] = patients_df.to_dict(orient="records")
         room_data: Dict = self._make_room_data(patients)
         self.room_list: List = self._room_dict_to_list(room_data)
-
+        print(f"room_list: {self.room_list}")
         st.markdown("***")
 
         ## UI Layout
@@ -402,7 +403,7 @@ class DashboardApp(HydraHeadApp):
         col_cols, _ = st.columns([1, 4])
         with col_cols:
             n_cols = st.number_input("n_cols", min_value=1, value=3)
-        n_rows = len(self.rooms) // n_cols + 1
+        n_rows = len(self.roomlist) // n_cols + 1
 
         idx = 0
         for i in range(n_rows):
@@ -410,13 +411,11 @@ class DashboardApp(HydraHeadApp):
             for j in range(n_cols):
                 with cols[j]:
                     idx = i*n_cols+j
-                    if idx < len(self.rooms):                             
-                        _room = self.room_list[idx].get('room', None)
+                    if idx < len(self.roomlist):                             
                         _patients = self.room_list[idx].get('patients', [])
                         
                         self.patient_df[idx] = pd.DataFrame(
-                            _patients, 
-                            columns=['id'] + list( PatientInfo.__annotations__.keys())
+                            _patients
                         )
                         gd = GridOptionsBuilder().from_dataframe(self.patient_df[idx])
                         gd.configure_column('id', hide=True)
@@ -449,14 +448,13 @@ class DashboardApp(HydraHeadApp):
                 st.session_state.visible = False
             def toggle():
                 st.session_state.visible = not st.session_state.visible
-            btn_toggle = st.button("Toggle", on_click=toggle)
+            st.button("Toggle", on_click=toggle)
                 
             with st.expander("Room Editor", expanded=st.session_state.visible):
                 self.UI_patients_editor()
 
-
-        # with col_layout:
-        #     self.UI_layout()
+        with col_layout:
+            self.UI_layout()
 
                             
 
