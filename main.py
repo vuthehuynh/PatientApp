@@ -4,13 +4,11 @@ import apps
 import apps.account_app
 import apps.dashboard_app
 from db import (
+    Database,
     TableName, 
     Account,
     PatientInfo,
     Room,
-    create_default_db_account, 
-    create_default_db_patient, 
-    read_db
 )
 from utils import Container, Utils
 from typing import List 
@@ -30,8 +28,8 @@ if __name__ == '__main__':
     if not 'loaded_account_db' in st.session_state:
         logger.info(f"Start loading database account.db")
         db_name = 'account.db'
-        create_default_db_account(db_name)
-        _db_account: List = read_db(db_name=db_name, table_name=TableName.ACCOUNT.value)
+        Database.create_default_db_account(db_name)
+        _db_account: List = Database.read_db(db_name=db_name, table_name=TableName.ACCOUNT.value)
         db_account: List[Account] = Utils.format_db_output(_db_account, TableName.ACCOUNT.value)
         logger.info(f"Successfully loading database account.db")
         st.session_state.loaded_account_db = db_account
@@ -92,10 +90,10 @@ if __name__ == '__main__':
                 db_name = f"{clinic}_patient.db"
                 
                 logger.info(f"Start loading database {db_name}")
-                create_default_db_patient(db_name)
-                _db_patients = read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
+                Database.create_default_db_patient(db_name)
+                _db_patients = Database.read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
                 db_patients: List[PatientInfo] = Utils.format_db_output(_db_patients, TableName.PATIENTINFO.value)
-                _db_rooms = read_db(db_name=db_name, table_name=TableName.ROOM.value)
+                _db_rooms = Database.read_db(db_name=db_name, table_name=TableName.ROOM.value)
                 db_rooms: List[Room] = Utils.format_db_output(_db_rooms, TableName.ROOM.value)
                 container = Container(
                     patients=db_patients,
