@@ -5,6 +5,7 @@ from enum import Enum
 # Define data classes for tables
 @dataclass
 class Account:
+    id: int 
     username: str
     password: str
     access_level: int
@@ -58,7 +59,7 @@ def create_table(db_name, table_name, columns):
     cursor.execute(query)
     conn.close()
 
-def insert_record(db_name, table_name, values: Union[str, Tuple]):
+def insert_record(db_name, table_name, values: Union[str, Tuple], remove_id: bool = True):
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
 
@@ -66,8 +67,15 @@ def insert_record(db_name, table_name, values: Union[str, Tuple]):
     keys = tuple(data_class.__annotations__.keys())
     if len(keys) == 1:
         keys = str(keys).replace(",", "")
+
+    ## Remove the id fields 
+    if remove_id:
+        keys = keys[1:]
+
     if isinstance(values, str):
         values = f"('{values}')"
+        
+    print(keys)        
     query = f"INSERT INTO {table_name} {keys} VALUES {values}"
     cursor.execute(query)
     conn.commit()

@@ -5,12 +5,13 @@ import apps.account_app
 import apps.dashboard_app
 from db import (
     TableName, 
+    Account,
     create_default_db_account, 
     create_default_db_patient, 
     read_db
 )
-from utils import Container
-
+from utils import Container, Utils
+from typing import List 
 ## logging
 import logging
 
@@ -28,7 +29,9 @@ if __name__ == '__main__':
         logger.info(f"Start loading database account.db")
         db_name = 'account.db'
         create_default_db_account(db_name)
-        db_account = read_db(db_name=db_name, table_name=TableName.ACCOUNT.value)
+        _db_account: List = read_db(db_name=db_name, table_name=TableName.ACCOUNT.value)
+        print(_db_account)
+        db_account: List[Account] = Utils.format_db_output(_db_account, TableName.ACCOUNT.value)
         logger.info(f"Successfully loading database account.db")
         st.session_state.loaded_account_db = db_account
     else:

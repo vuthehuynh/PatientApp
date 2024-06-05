@@ -3,13 +3,46 @@ import base64
 import streamlit as st
 from db import PatientInfo
 from typing import List
-from db import fetch_all_records
-
+from db import fetch_all_records, tablename_to_class
+from dataclasses import dataclass
 class Container:
     def __init__(self, patients, rooms):
         self.patients = patients
         self.rooms = rooms
 
+class Utils:
+    @staticmethod
+    def format_db_output(db: List, tablename: str, include_id=True)-> List:
+        '''
+        Format the output from the database to a list of dictionary
+        '''
+        table_class: dataclass =  tablename_to_class.get(tablename, None)
+        if table_class is None:
+            return []
+        
+        keys = Utils.get_class_fields(table_class) 
+        
+        data = []
+        _class: dataclass = tablename_to_class.get(tablename, None)
+
+        for record in db:
+            record_dict = dict(zip(keys, record))
+            data.append(record_dict)
+
+        return [
+            _class(**record) for record in data
+        ]
+
+    @staticmethod
+    def get_class_fields(class_obj: dataclass) -> List:
+        return tuple(class_obj.__annotations__.keys())
+
+    @staticmethod
+    def assign_dict_to_dict(dic1, dic2):
+        for k,v in dic1.items():
+            dic1[k] = dic2.get(k, None)
+        return dic1
+    
 def hash_password(password):
     # Convert the password to bytes before hashing
     password_bytes = password.encode('utf-8')

@@ -9,18 +9,19 @@ from db import (
     TableName,
     DBName
 )
-from utils import sidebar_logo
+from utils import sidebar_logo, Utils
 from st_aggrid import AgGrid, GridOptionsBuilder
+from typing import List
 
 class AccountApp(HydraHeadApp):
     def __init__(self, title = '', db = None, **kwargs):
         self.__dict__.update(kwargs)
         self.title = title
-        self.accounts = db
-        self.ss = st.session_state        
-        self.account_idx_selected = None 
-        self.account_data = self._init_account_data()
+        self.accounts: List[Account] = db
         self.clinics = self._load_clinics()
+        self.account_current = self._init_account_data()
+        self.account_idx_selected = None 
+        
 
     def run(self):
         ## UI Sidebar
@@ -32,54 +33,55 @@ class AccountApp(HydraHeadApp):
 
         ## UI pages
         if page == "Account Info":
-            self.page_account_info()
+            self.UI_accounts()
         elif page == "DB statistics":
-            self.page_db_statistics()
+            self.UI_db_statistics()
 
-    def page_account_info(self):
+    def UI_accounts(self):
         ## UI for account table 
         
-        # self.clinics = self._load_clinics()
         st.markdown("***")
         st.header('Accounts')
         UI_account = st.columns([1,1])
 
 
         with UI_account[0]:
-            account_df = pd.DataFrame(self.accounts, columns=['id', 'username', 'password', 'access_level', 'clinic'])
-            gd = GridOptionsBuilder().from_dataframe(account_df)
+
+            _accounts: List = [account.__dict__ for account in self.accounts]
+            _account_df = pd.DataFrame(_accounts, columns=Account.__annotations__.keys())
+            gd = GridOptionsBuilder().from_dataframe(_account_df)
             gd.configure_column('id', hide=True)
             go = gd.build()
             grid_return = AgGrid(
-                account_df, 
+                _account_df, 
                 gridOptions=go,
                 update_on=["cellClicked"],
                 fit_columns_on_grid_load=True
                 )
             if grid_return.event_data is not None:
-                _accounts = grid_return.event_data.get("data", None)  
-                if _accounts is not None:
-                    self.account_idx_selected = _accounts.get("id", None)
-                    for k,v in self.account_data.items():
-                        self.account_data[k] = _accounts[k]
+                event_data = grid_return.event_data.get("data", None)  
+                event_rowIdx: int = grid_return.event_data.get("rowIndex", None)
+                if event_data is not None:
+                    self.account_idx_selected = event_data.get("id", None)
+                    self.account_current = Utils.assign_dict_to_dict(self.account_current, event_data)
 
         with UI_account[1]:
             tab_edit_account, tab_add_account = st.tabs(["Edit Account", "Add Account"])
             with tab_edit_account:
                 with st.form("Edit Account", border=True):
-                    txt_user_name = st.text_input("Username", value=self.account_data.get('username', ''), key='edit_acc_username')
-                    txt_password = st.text_input("Password", value=self.account_data.get('password', ''), key='edit_acc_password')
-                    txt_access_level = st.text_input("Access Level", value=self.account_data.get('access_level', ''), key='edit_acc_access_level')
+                    txt_user_name = st.text_input("Username", value=self.account_current.get('username', ''), key='edit_acc_username')
+                    txt_password = st.text_input("Password", value=self.account_current.get('password', ''), key='edit_acc_password')
+                    txt_access_level = st.text_input("Access Level", value=self.account_current.get('access_level', ''), key='edit_acc_access_level')
                     index_clinic = 0
-                    if self.account_data.get("clinic", ""):
-                        index_clinic = int(self.clinics.index(self.account_data.get("clinic", "")))
+                    if self.account_current.get("clinic", ""):
+                        index_clinic = int(self.clinics.index(self.account_current.get("clinic", "")))
                     else:
                         index_clinic = 0
                     txt_clinic = st.selectbox(("Clinic"), options=self.clinics, index=index_clinic, key='edit_acc_clinic')
 
                     btn_submitted = st.form_submit_button("Edit Account")
                     if btn_submitted:
-                        keys = tuple(Account.__annotations__.keys())
+                        keys = tuple(Account.__annotations__.keys())[1:]
                         values = (txt_user_name, txt_password, txt_access_level, txt_clinic)
                         db_name = DBName.ACCOUNT.value
                         table_name = TableName.ACCOUNT.value
@@ -103,7 +105,7 @@ class AccountApp(HydraHeadApp):
 
         st.markdown("***")
 
-    def page_db_statistics(self):
+    def UI_db_statistics(self):
         ## Get list of clinics
         st.markdown("***")
         
@@ -128,24 +130,17 @@ class AccountApp(HydraHeadApp):
         #         st.error("DB not found!")
             
     def _init_account_data(self):
-        singup_db = {}
+        account = {}
         keys = tuple(Account.__annotations__.keys())
         for key in keys:
-            singup_db[key] = ""
-        return singup_db    
+            account[key] = ""
+        return account    
 
     def _load_clinics(self):
-        users = self.accounts
-        users = [
-            account[1:] for account in users
+        accounts: List[Account] = self.accounts
+        clinics = [
+            account.clinic for account in accounts
         ]
-        keys = tuple(Account.__annotations__.keys())
-        clinics = []
-        for user in users:
-            for key, value in zip(keys, user):
-                if key == 'clinic':
-                    clinics.append(value)
-
         return clinics
     
 if __name__ == "__main__":
@@ -156,8 +151,9 @@ if __name__ == "__main__":
         username: str
         clinic: str
     app_state = AppState(username="huynh", clinic="PK2")
-    db_name = 'account_db'
+    db_name = 'account.db'
     create_default_db_account(db_name)
-    db_account = read_db(db_name=db_name, table_name=TableName.ACCOUNT.value)  
+    _db_account = read_db(db_name=db_name, table_name=TableName.ACCOUNT.value)  
+    db_account: List[Account] = Utils.format_db_output(_db_account, TableName.ACCOUNT.value)
     patient = AccountApp(title="Account", db=db_account, app_state=app_state)
     patient.run()
