@@ -19,7 +19,8 @@ class ReceiveApp(HydraHeadApp):
     def __init__(self, title = '', db: Container = None, app_state = None, **kwargs):
         self.__dict__.update(kwargs)
         self.title = title
-        self.patient_current: Dict = self._init_patient(is_remove_idx=False)
+        # self.patient_current: Dict = self._init_patient(is_remove_idx=False)
+        self.patient_current: PatientInfo = PatientInfo(0, '', '', 0, 0, 'present', datetime.datetime.now())
         if app_state is not None:
             self.user = app_state.username
             self.clinic = app_state.clinic
@@ -38,7 +39,6 @@ class ReceiveApp(HydraHeadApp):
             self.idx_added_record_db = None     
             # The ids of selected rows in dataframe
             self.ids_db = []
-            
 
     def run(self):
         ## Side bar
@@ -71,9 +71,9 @@ class ReceiveApp(HydraHeadApp):
     def _tab_patient_add(self):
         with st.form(key="patient_add"):
             r10, r11, r12, r14 = st.columns([1, 1, 1, 1])
-            with r10: txt_BN_code = st.text_input("BN Code", placeholder="Enter BN Code")
+            with r10: txt_BN_code = st.text_input("BN Code", value=self.patient_current.bncode, placeholder="Enter BN Code")
             with r11: 
-                txt_dob = st.date_input("Date of Birth", datetime.date(2019, 7, 6))
+                txt_dob = st.date_input("Date of Birth", value=self.patient_current.dob)
             with r12: 
                 rb_sex = st.radio("Sex", ["Male ", "Female"])
             cb_Nameless = st.checkbox("Nameless")
@@ -81,11 +81,11 @@ class ReceiveApp(HydraHeadApp):
             with r20a[0]:
                 txt_fullname = st.text_input("Full Name", placeholder="Enter Full Name")
             with r20a[1]:
-                txt_CCCD = st.text_input("CCCD", placeholder="CCCD")
+                txt_CCCD = st.text_input("CCCD", value=self.patient_current.cccd, placeholder="CCCD")
             with r20a[2]:
                 # txt_status = st.text_input("Left", placeholder="is_left")   
                 status: List = [i.value for i in PatientStatus]             
-                txt_status = st.selectbox("Status", status)                
+                txt_status = st.selectbox("Status", status, index=status.index(self.patient_current.status))                
             r20, r21 = st.columns([1, 1])
             with r20: txt_phone = st.text_input("Phone", placeholder="Enter Phone")
             with r21: txt_email = st.text_input("Email", placeholder="Enter Email")
@@ -93,10 +93,8 @@ class ReceiveApp(HydraHeadApp):
             with r30: txt_address = st.text_input("Adress", placeholder="Enter the address")
             with r31: txt_shortcut_address = st.text_input("Shortcut address", placeholder="Enter the type off address")
             r40, r41 = st.columns([1, 1])
-            with r40: txt_city = st.text_input("city", placeholder="Enter city",
-                                               value=self.patient_current.get("city", ""),key="txt_city_receive")
-            with r41: txt_district = st.text_input("district", placeholder="Enter district",
-                                               value=self.patient_current.get("district", ""), key="txt_district_receive")
+            with r40: txt_city = st.text_input("city", placeholder="Enter city",key="txt_city_receive")
+            with r41: txt_district = st.text_input("district", placeholder="Enter district",key="txt_district_receive")
                                 
             r50, r51 = st.columns([1, 1])
             with r50: txt_ward = st.text_input("ward", placeholder="Enter ward")
@@ -105,11 +103,19 @@ class ReceiveApp(HydraHeadApp):
             with r60: txt_id_number = st.text_input("id_number", placeholder="Enter id_number")
             with r61: txt_job = st.text_input("job", placeholder="Enter job")
 
+            user_input_data: dict = {
+                'room': "",
+                'bed': "",
+                'bncode': txt_BN_code,
+                'cccd': txt_CCCD,
+                'status': txt_status,
+                'dob': str(txt_dob)
+            }
             btn_add_patient = st.form_submit_button("Add Patient")
             btn_edit_patient = st.form_submit_button("Edit Patient")
             if btn_add_patient:
                 ## Save to db
-                values = ("", "", txt_city, txt_district)
+                values = tuple(user_input_data.values())
                 db_name = self.db_name
                 table_name = TableName.PATIENTINFO.value
                 self.idx_added_record_db = Database.insert_record(db_name, table_name, values=values)
@@ -127,8 +133,8 @@ class ReceiveApp(HydraHeadApp):
                 st.rerun()
 
             if btn_edit_patient:
-                keys = tuple(PatientInfo.__annotations__.keys())[1:]
-                values = ("", "", txt_city, txt_district)
+                keys = tuple(user_input_data.keys())
+                values = tuple(user_input_data.values())
                 db_name = self.db_name
                 table_name = TableName.PATIENTINFO.value
                 Database.update_record_keys(db_name, table_name, keys, values, id=self.idx_patient_db)
@@ -136,12 +142,13 @@ class ReceiveApp(HydraHeadApp):
 
                 ## Save to memory (self.accounts)
                 self.patients = self._update_patient_to_memory(
-                    data=dict(zip(keys, values)),
+                    data=user_input_data,
                     input_df=self.patients_df,
                     idx_df=self.idx_df,
                     memory=self.patients,
                     classfootprint=PatientInfo
                 )
+                print(f"Updated patients: {self.patients}")
                 st.rerun()
 
     def _btn_delete_selected(self):
@@ -178,8 +185,9 @@ class ReceiveApp(HydraHeadApp):
             memory: List,
             classfootprint: dataclass = PatientInfo
         )-> List:
-
-            add_account = classfootprint(**data)
+            
+            convert_data = Database.types_converter(data, classfootprint)
+            add_account = classfootprint(**convert_data)
             memory.append(add_account)
 
             return memory
@@ -194,7 +202,8 @@ class ReceiveApp(HydraHeadApp):
         )-> List:
             
             mod_account_df: dict = input_df.iloc[idx_df].to_dict()
-            mod_account_df = Utils.assign_dict_to_dict(mod_account_df, data)
+            _mod_account_df = Utils.assign_dict_to_dict(mod_account_df, data)
+            mod_account_df = Database.types_converter(_mod_account_df, classfootprint)
             _id1 = mod_account_df.get('id', None)
             _id2 = [idx for idx, account in enumerate(memory) if account.id == _id1]
             if _id2:
@@ -226,6 +235,8 @@ class ReceiveApp(HydraHeadApp):
 
         gb = GridOptionsBuilder.from_dataframe(self.patients_df)
         # gb.configure_column("id", hide=True)
+        # gb.configure_column("dob", type=["customDateTimeFormat"], custom_format_string='yyyy-MM-dd')
+        gb.configure_column("dob", custom_format_string='yyyy-MM-dd')
         gb.configure_default_column(
             groupable=True, value=True, enableRowGroup=True, aggFunc="sum", editable=False
         )
@@ -260,7 +271,8 @@ class ReceiveApp(HydraHeadApp):
             self.idx_df: int = grid_return.event_data.get("rowIndex", None)
             if event_data is not None:
                 self.idx_patient_db = event_data.get("id", None)
-                self.patient_current = Utils.assign_dict_to_dict(self.patient_current, event_data)
+                converted_data: dict = Database.types_converter(event_data, PatientInfo)
+                self.patient_current = PatientInfo(**converted_data)
             if event_type == "selectionChanged":
                 rows_data: pd.DataFrame = grid_return.selected_rows
                 rows: List = rows_data.to_dict(orient='records')
@@ -277,7 +289,7 @@ class ReceiveApp(HydraHeadApp):
 
 if __name__ == "__main__":
     from dataclasses import dataclass
-    from db import read_db, Database
+    from db import Database
     @dataclass 
     class AppState:
         username: str

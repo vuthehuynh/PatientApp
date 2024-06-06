@@ -12,20 +12,20 @@ class Container:
         self.rooms = rooms
 
 class Utils:
-    @staticmethod
-    def types_converter(data: dict, data_class):
-        # Get the fields and their types from the Account dataclass
-        field_types = {f.name: f.type for f in fields(data_class)}
+    # @staticmethod
+    # def types_converter(data: dict, data_class):
+    #     # Get the fields and their types from the Account dataclass
+    #     field_types = {f.name: f.type for f in fields(data_class)}
         
-        # Convert the values in the data dictionary to the appropriate types
-        converted_data = {}
-        for key, value in data.items():
-            if key in field_types:
-                # Convert value to the type specified in the dataclass
-                converted_data[key] = field_types[key](value)
+    #     # Convert the values in the data dictionary to the appropriate types
+    #     converted_data = {}
+    #     for key, value in data.items():
+    #         if key in field_types:
+    #             # Convert value to the type specified in the dataclass
+    #             converted_data[key] = field_types[key](value)
         
-        # Create and return an instance of Account
-        return tuple(converted_data.values())
+    #     # Create and return an instance of Account
+    #     return tuple(converted_data.values())
     
     @staticmethod
     def format_db_output(db: List, tablename: str, include_id=True)-> List:
@@ -59,7 +59,17 @@ class Utils:
             if dic2.get(k, None) is not None:
                 dic1[k] = dic2.get(k, None)
         return dic1
-    
+
+    @staticmethod
+    def assign_dict_to_class(data_class, dic):
+        keys = list(data_class.__annotations__.keys())
+        for key in keys:
+            key_type = fields(data_class)[keys.index(key)].type
+        # for k,v in dic1.items():
+        #     if dic2.get(k, None) is not None:
+        #         dic1[k] = dic2.get(k, None)
+        # return dic1
+        
     @staticmethod
     def generate_unique_code(s):
         return int(hashlib.md5(s.encode()).hexdigest(), 16) % 10**6

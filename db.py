@@ -2,7 +2,8 @@ import sqlite3
 from dataclasses import dataclass, fields
 from typing import Tuple, Union
 from enum import Enum
-from datetime import datetime
+# from datetime import datetime
+import datetime
 # Define data classes for tables
 @dataclass
 class Account:
@@ -29,7 +30,7 @@ class PatientInfo:
     bncode: int
     cccd: int
     status : str
-    dob: datetime
+    dob: datetime.date
     
 
 dataclass_to_tablename = {
@@ -187,7 +188,16 @@ class Database:
         records = cursor.fetchall()
         conn.close()
         return records
-
+    
+    @staticmethod
+    def convert_to_date(value):
+        if isinstance(value, datetime.date):
+            return value
+        try:
+            return datetime.strptime(str(value), "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError(f"Error converting value {value} to date")
+    
     @staticmethod
     def types_converter(data: dict, data_class):
         # Get the fields and their types from the Account dataclass
@@ -197,17 +207,19 @@ class Database:
         converted_data = {}
         for key, value in data.items():
             if key in field_types:
-                # Convert value to the type specified in the dataclass
                 try:
-                    if key in ["dob"]:
-                        converted_data[key] = datetime.strptime(value, "%Y-%m-%d")
+                    if field_types[key] in [datetime.date]:
+                        if value.find('.') != -1:
+                            value_date = datetime.datetime.strptime(value, '%Y-%m-%dT%H:%M:%S.%f').strftime('%Y-%m-%d')
+                            converted_data[key] = datetime.datetime.strptime(value_date, "%Y-%m-%d").date()
+                        else:
+                            converted_data[key] = datetime.datetime.strptime(value, "%Y-%m-%d").date()
                     else:
                         converted_data[key] = field_types[key](value)
                 except:
                     print(f"Error converting {key} with value {value}, field type {field_types[key]}")
         
-        # Create and return an instance of Account
-        return tuple(converted_data.values())
+        return converted_data
     
     @staticmethod
     def read_db(db_name, table_name, convert_type=True):
@@ -215,14 +227,12 @@ class Database:
             data_class = tablename_to_class[table_name]
             org_db: list = Database.fetch_all_records(db_name, table_name)
             keys = tuple(data_class.__annotations__.keys())
-            print(f"keys: {keys}")
             
             db = []
             for entry_values in org_db:
-                print(f"values: {entry_values}")
                 data = dict(zip(keys, entry_values))
-                _db: tuple = Database.types_converter(data, data_class)
-                db.append(_db)
+                converted_data: dict = Database.types_converter(data, data_class)
+                db.append(tuple(converted_data.values()))
         else:
             db: tuple = Database.fetch_all_records(db_name, table_name)
         return db 

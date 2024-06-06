@@ -175,7 +175,8 @@ class AccountApp(HydraHeadApp):
         )-> List:
             
             mod_account_df: dict = input_df.iloc[idx_df].to_dict()
-            mod_account_df = Utils.assign_dict_to_dict(mod_account_df, data)
+            _mod_account_df = Utils.assign_dict_to_dict(mod_account_df, data)
+            mod_account_df = Database.types_converter(_mod_account_df, classfootprint)
             _id1 = mod_account_df.get('id', None)
             _id2 = [idx for idx, account in enumerate(memory) if account.id == _id1]
             if _id2:
@@ -189,7 +190,8 @@ class AccountApp(HydraHeadApp):
             classfootprint: dataclass = Account
         )-> List:
 
-            add_account = classfootprint(**data)
+            convert_data = Database.types_converter(data, classfootprint)
+            add_account = classfootprint(**convert_data)
             memory.append(add_account)
 
             return memory

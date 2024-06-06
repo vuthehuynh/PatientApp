@@ -152,7 +152,6 @@ class DashboardApp(HydraHeadApp):
             key="patient_table",
             reload_data=True
         )
-        # st.button("Edit Patient", on_click=self._btn_edit_patient)
         if grid_return.event_data is not None:
             event_data = grid_return.event_data.get("data", None)  
             event_type = grid_return.event_data.get("type", None)  
@@ -160,11 +159,8 @@ class DashboardApp(HydraHeadApp):
             if event_data is not None:
                 self.idx_patient_db = event_data.get("id", None)
             if event_type == "cellValueChanged":
-                converted_data = {k: v for k, v in event_data.items() if k != '__pandas_index' and k != 'id'}
-                # print(converted_data, self.idx_patient_db)
-
-                # patient_current = PatientInfo(**converted_data)
-                self._btn_edit_patient(tuple(converted_data.values()))
+                _data = {k: v for k, v in event_data.items() if k != '__pandas_index' and k != 'id'}
+                self._btn_edit_patient(tuple(_data.values()))
 
     def _get_id(self, selected_data: pd.DataFrame):
         if selected_data is not None:
@@ -175,10 +171,10 @@ class DashboardApp(HydraHeadApp):
             return selected_id
         return None
     
-    def _btn_edit_room_func(self, txt_edit_room):
+    def _btn_edit_room_func(self, data):
         ## Save to db
         keys = tuple(Room.__annotations__.keys())[1:]
-        values = (txt_edit_room,)
+        values = tuple(data.values())
         db_name = self.db_name
         table_name = TableName.ROOM.value
         Database.update_record_keys(db_name, table_name, keys, values, id=self.idx_room_db)
@@ -210,9 +206,9 @@ class DashboardApp(HydraHeadApp):
             classfootprint=PatientInfo
         )
 
-    def _btn_add_room_func(self, txt_add_room):
+    def _btn_add_room_func(self, data: dict):
         ## Save to db
-        values = (txt_add_room)
+        values = tuple(data.values())
         db_name = self.db_name
         table_name = TableName.ROOM.value
         self.idx_added_record_db = Database.insert_record(db_name, table_name, values=values)
@@ -220,7 +216,7 @@ class DashboardApp(HydraHeadApp):
 
         ## Update memory (self.accounts)
         keys = tuple(Room.__annotations__.keys())
-        values = tuple([self.idx_added_record_db]) + tuple([txt_add_room])
+        values = tuple([self.idx_added_record_db]) + tuple(data.values())
 
         self.rooms = self._add_to_memory(
             data=dict(zip(keys, values)),
@@ -240,7 +236,9 @@ class DashboardApp(HydraHeadApp):
         )-> List:
             
             mod_account_df: dict = input_df.iloc[idx_df].to_dict()
-            mod_account_df = Utils.assign_dict_to_dict(mod_account_df, data)
+            _mod_account_df = Utils.assign_dict_to_dict(mod_account_df, data)
+            mod_account_df = Database.types_converter(_mod_account_df, classfootprint)
+            print(f"mod_account_df: {mod_account_df}")
             _id1 = mod_account_df.get('id', None)
             _id2 = [idx for idx, account in enumerate(memory) if account.id == _id1]
             if _id2:
@@ -253,8 +251,9 @@ class DashboardApp(HydraHeadApp):
             memory: List,
             classfootprint: dataclass = Room
         )-> List:
-
-            add_account = classfootprint(**data)
+            
+            convert_data = Database.types_converter(data, classfootprint)
+            add_account = classfootprint(**convert_data)
             memory.append(add_account)
 
             return memory
@@ -270,13 +269,14 @@ class DashboardApp(HydraHeadApp):
         room_data = {}
         # roomlist = [room.__dict__.get("name") for room in self.rooms]
         for room in self.roomlist:
-            room_data[room] = []
+            if room:
+                room_data[room] = []
         for patient in patients:
             room = patient.get('room', None)
-            if room is not None:
+            if room:
                 room_data[room].append(patient)
-            else:
-                room_data['None'].append(patient)
+            # else:
+            #     room_data['None'].append(patient)
         return room_data
 
     def _room_dict_to_list(self, room_data: Dict) -> List:
@@ -342,10 +342,17 @@ class DashboardApp(HydraHeadApp):
                     rows: List = rows_data.to_dict(orient='records')
                     self.ids_room_db = [_row.get("id") for _row in rows]
             txt_edit_room = st.text_input(" ", value=self.room_current.get('name', ''), key='edit_room')
-            values = (txt_edit_room)
-            btn_edit_room = st.button("Edit Room", on_click=self._btn_edit_room_func,args=(txt_edit_room,))
+            # values = (txt_edit_room)
+            room_edit_data: dict = {
+                'name': txt_edit_room
+            }
+            btn_edit_room = st.button("Edit Room", on_click=self._btn_edit_room_func,args=(room_edit_data))
             txt_add_room = st.text_input(" ", key='add_room')
-            btn_add_room = st.button("Add Room", on_click=self._btn_add_room_func,args=(txt_add_room,))        
+
+            room_add_data: dict = {
+                'name': txt_add_room
+            }
+            btn_add_room = st.button("Add Room", on_click=self._btn_add_room_func,args=(room_add_data))        
 
     def _btn_delete_selected(self):
         '''
