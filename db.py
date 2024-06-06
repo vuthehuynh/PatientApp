@@ -2,6 +2,7 @@ import sqlite3
 from dataclasses import dataclass, fields
 from typing import Tuple, Union
 from enum import Enum
+from datetime import datetime
 # Define data classes for tables
 @dataclass
 class Account:
@@ -25,8 +26,11 @@ class PatientInfo:
     id: int 
     room: str
     bed: str
-    city: str
-    district : str
+    bncode: int
+    cccd: int
+    status : str
+    dob: datetime
+    
 
 dataclass_to_tablename = {
     Account: "account",
@@ -51,6 +55,11 @@ class DBName(str, Enum):
     ACCOUNT = "account.db"
     PATIENT = "patient.db"
 
+class PatientStatus(str, Enum):
+    PRESENT = "present"
+    ABSENT = "absent"
+    LEFT = "left"
+    DEAD = "dead"
 
 class Database:
     @staticmethod
@@ -190,7 +199,10 @@ class Database:
             if key in field_types:
                 # Convert value to the type specified in the dataclass
                 try:
-                    converted_data[key] = field_types[key](value)
+                    if key in ["dob"]:
+                        converted_data[key] = datetime.strptime(value, "%Y-%m-%d")
+                    else:
+                        converted_data[key] = field_types[key](value)
                 except:
                     print(f"Error converting {key} with value {value}, field type {field_types[key]}")
         
@@ -203,8 +215,11 @@ class Database:
             data_class = tablename_to_class[table_name]
             org_db: list = Database.fetch_all_records(db_name, table_name)
             keys = tuple(data_class.__annotations__.keys())
+            print(f"keys: {keys}")
+            
             db = []
             for entry_values in org_db:
+                print(f"values: {entry_values}")
                 data = dict(zip(keys, entry_values))
                 _db: tuple = Database.types_converter(data, data_class)
                 db.append(_db)
@@ -235,8 +250,10 @@ class Database:
             "id INTEGER PRIMARY KEY", 
             "room VARCHAR(50)", 
             "bed VARCHAR(50)", 
-            "city VARCHAR(50)", 
-            "district VARCHAR(50)"
+            "bncode INTEGER", 
+            "cccd INTEGER", 
+            "status VARCHAR(50)", 
+            "dob VARCHAR(50)", 
         ]
         table_name = TableName.PATIENTINFO.value    
         Database.create_table(db_name, table_name, table_fields)

@@ -7,7 +7,8 @@ from db import (
     Database,
     PatientInfo,
     DBName,
-    TableName
+    TableName,
+    PatientStatus
 )
 from utils import sidebar_logo, Utils
 from collections import defaultdict
@@ -76,7 +77,15 @@ class ReceiveApp(HydraHeadApp):
             with r12: 
                 rb_sex = st.radio("Sex", ["Male ", "Female"])
             cb_Nameless = st.checkbox("Nameless")
-            txt_fullname = st.text_input("Full Name", placeholder="Enter Full Name")
+            r20a = st.columns([1, 1, 1])
+            with r20a[0]:
+                txt_fullname = st.text_input("Full Name", placeholder="Enter Full Name")
+            with r20a[1]:
+                txt_CCCD = st.text_input("CCCD", placeholder="CCCD")
+            with r20a[2]:
+                # txt_status = st.text_input("Left", placeholder="is_left")   
+                status: List = [i.value for i in PatientStatus]             
+                txt_status = st.selectbox("Status", status)                
             r20, r21 = st.columns([1, 1])
             with r20: txt_phone = st.text_input("Phone", placeholder="Enter Phone")
             with r21: txt_email = st.text_input("Email", placeholder="Enter Email")
@@ -95,6 +104,7 @@ class ReceiveApp(HydraHeadApp):
             r60, r61 = st.columns([1, 1])
             with r60: txt_id_number = st.text_input("id_number", placeholder="Enter id_number")
             with r61: txt_job = st.text_input("job", placeholder="Enter job")
+
             btn_add_patient = st.form_submit_button("Add Patient")
             btn_edit_patient = st.form_submit_button("Edit Patient")
             if btn_add_patient:

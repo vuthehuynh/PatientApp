@@ -60,6 +60,10 @@ class Utils:
                 dic1[k] = dic2.get(k, None)
         return dic1
     
+    @staticmethod
+    def generate_unique_code(s):
+        return int(hashlib.md5(s.encode()).hexdigest(), 16) % 10**6
+    
 def hash_password(password):
     # Convert the password to bytes before hashing
     password_bytes = password.encode('utf-8')

@@ -17,10 +17,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-file_handler = logging.FileHandler('log.txt')
+# file_handler = logging.FileHandler('log.txt')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+# file_handler.setFormatter(formatter)
+# logger.addHandler(file_handler)
 logger.addHandler(logging.StreamHandler())
 
 if __name__ == '__main__':
@@ -92,6 +92,7 @@ if __name__ == '__main__':
                 logger.info(f"Start loading database {db_name}")
                 Database.create_default_db_patient(db_name)
                 _db_patients = Database.read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
+                print(f"db_patients: {_db_patients}")
                 db_patients: List[PatientInfo] = Utils.format_db_output(_db_patients, TableName.PATIENTINFO.value)
                 _db_rooms = Database.read_db(db_name=db_name, table_name=TableName.ROOM.value)
                 db_rooms: List[Room] = Utils.format_db_output(_db_rooms, TableName.ROOM.value)
@@ -121,14 +122,14 @@ if __name__ == '__main__':
     # completely optional, but if you have too many entries, you can make it nicer by using accordian menus
     if user_access_level == 1:
         complex_nav = {
-            'Dashboard': ['Dashboard'],
+            # 'Dashboard': ['Dashboard'],
             'Receive': ['Receive'],
             'Account': ['Account'],
             
         }
     else:
         complex_nav = {
-            'Dashboard': ['Dashboard'],
+            # 'Dashboard': ['Dashboard'],
             'Receive': ['Receive'],
         }
 
