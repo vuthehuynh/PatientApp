@@ -38,7 +38,7 @@ class ReceiveApp(HydraHeadApp):
             # The added idx of new item in db
             self.idx_added_record_db = None     
             # The ids of selected rows in dataframe
-            self.ids_db = []
+            self.ids_db: List[int] = []
 
     def run(self):
         ## Side bar
@@ -174,7 +174,7 @@ class ReceiveApp(HydraHeadApp):
             ids_db: idx of rows in db
             '''
             new_memory = [
-                account for account in memory if str(account.id) not in ids_db
+                account for account in memory if account.id not in ids_db
             ]
                 
             return new_memory
@@ -276,7 +276,7 @@ class ReceiveApp(HydraHeadApp):
             if event_type == "selectionChanged":
                 rows_data: pd.DataFrame = grid_return.selected_rows
                 rows: List = rows_data.to_dict(orient='records')
-                self.ids_db = [_row.get("id") for _row in rows]
+                self.ids_db: List[int] = [_row.get("id") for _row in rows]
 
     def _get_id(self, selected_data: pd.DataFrame):
         if selected_data is not None:

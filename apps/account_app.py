@@ -16,12 +16,11 @@ class AccountApp(HydraHeadApp):
     def __init__(self, title = '', db = None, **kwargs):
         self.__dict__.update(kwargs)
         self.title = title
-        self.accounts: List[Account] = db
-        self.clinics = self._load_clinics()
-        self.account_current = self._init_account_data()
-         
 
         if not 'init' in st.session_state:
+            self.account_current = self._init_account_data()
+            self.accounts: List[Account] = db
+            self.clinics = self._load_clinics()
             # idx of account db when selected
             self.idx_account_db = None
             st.session_state.init = True
@@ -30,7 +29,7 @@ class AccountApp(HydraHeadApp):
             # The added idx of new item in db
             self.idx_added_record_db = None     
             # The ids of selected rows in dataframe
-            self.ids_db = []
+            self.ids_db: List[int] = []
 
     def run(self):
         ## UI Sidebar
@@ -90,8 +89,8 @@ class AccountApp(HydraHeadApp):
                 if event_type == "selectionChanged":
                     rows_data: pd.DataFrame = grid_return.selected_rows
                     rows: List = rows_data.to_dict(orient='records')
-                    self.ids_db = [_row.get("id") for _row in rows]
-
+                    self.ids_db: List[int] = [_row.get("id") for _row in rows]
+                    print(f"self.ids_db: {self.ids_db}")
         with col_account_edit:
             tab_edit_account, tab_add_account = st.tabs(["Edit Account", "Add Account"])
             with tab_edit_account:
@@ -227,14 +226,15 @@ class AccountApp(HydraHeadApp):
         ## Delete from db
         db_name = DBName.ACCOUNT.value
         table_name = TableName.ACCOUNT.value
-        Database.delete_records(db_name, table_name, ids=self.ids_db)
+        # Database.delete_records(db_name, table_name, ids=self.ids_db)
 
         ## Delete from memory 
         self.accounts = self._delete_from_memory(
             ids_db=self.ids_db,
             memory=self.accounts
         )
-
+        print(f"self.accounts after delete: {self.accounts}")
+        
     def _delete_from_memory(
             self, 
             ids_db: dict,
@@ -244,9 +244,9 @@ class AccountApp(HydraHeadApp):
             ids_db: idx of rows in db
             '''
             new_memory = [
-                account for account in memory if str(account.id) not in ids_db
+                account for account in memory if account.id not in ids_db
             ]
-                
+            print(f"new_memory: {new_memory}")
             return new_memory
             
     def _init_account_data(self):

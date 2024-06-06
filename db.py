@@ -83,9 +83,9 @@ class Database:
             keys = keys[1:]
         if len(keys) == 1:
             keys = str(keys).replace(",", "")
-
         ## Remove the id fields 
-
+        if isinstance(values, tuple) and len(values) == 1:
+            values = values[0]
         if isinstance(values, str):
             values = f"('{values}')"
 

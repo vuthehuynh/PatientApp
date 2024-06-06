@@ -49,7 +49,7 @@ class DashboardApp(HydraHeadApp):
             # The added idx of new item in db
             self.idx_room_added_record_db = None     
             # The ids of selected rows in dataframe
-            self.ids_room_db = []
+            self.ids_room_db: List[int] = []
             
 
         self.editor_visiable = False
@@ -340,19 +340,19 @@ class DashboardApp(HydraHeadApp):
                 if event_type == "selectionChanged":
                     rows_data: pd.DataFrame = grid_return.selected_rows
                     rows: List = rows_data.to_dict(orient='records')
-                    self.ids_room_db = [_row.get("id") for _row in rows]
+                    self.ids_room_db: List[int] = [_row.get("id") for _row in rows]
             txt_edit_room = st.text_input(" ", value=self.room_current.get('name', ''), key='edit_room')
             # values = (txt_edit_room)
             room_edit_data: dict = {
                 'name': txt_edit_room
             }
-            btn_edit_room = st.button("Edit Room", on_click=self._btn_edit_room_func,args=(room_edit_data))
+            btn_edit_room = st.button("Edit Room", on_click=self._btn_edit_room_func,args=(room_edit_data,))
             txt_add_room = st.text_input(" ", key='add_room')
 
             room_add_data: dict = {
                 'name': txt_add_room
             }
-            btn_add_room = st.button("Add Room", on_click=self._btn_add_room_func,args=(room_add_data))        
+            btn_add_room = st.button("Add Room", on_click=self._btn_add_room_func,args=(room_add_data,))        
 
     def _btn_delete_selected(self):
         '''
@@ -378,7 +378,7 @@ class DashboardApp(HydraHeadApp):
             ids_db: idx of rows in db
             '''
             new_memory = [
-                account for account in memory if str(account.id) not in ids_db
+                account for account in memory if account.id not in ids_db
             ]
                 
             return new_memory
