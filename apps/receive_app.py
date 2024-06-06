@@ -173,11 +173,13 @@ class ReceiveApp(HydraHeadApp):
             '''
             ids_db: idx of rows in db
             '''
-            new_memory = [
-                account for account in memory if account.id not in ids_db
+            ids_remove = [
+                account for account in memory if account.id in ids_db
             ]
-                
-            return new_memory
+            for idx in ids_remove:
+                memory.remove(idx)
+
+            return memory
         
     def _add_to_memory(
             self, 

@@ -50,9 +50,6 @@ class DashboardApp(HydraHeadApp):
             self.idx_room_added_record_db = None     
             # The ids of selected rows in dataframe
             self.ids_room_db: List[int] = []
-            
-
-        self.editor_visiable = False
 
     def run(self):
         ## Side bar
@@ -238,7 +235,6 @@ class DashboardApp(HydraHeadApp):
             mod_account_df: dict = input_df.iloc[idx_df].to_dict()
             _mod_account_df = Utils.assign_dict_to_dict(mod_account_df, data)
             mod_account_df = Database.types_converter(_mod_account_df, classfootprint)
-            print(f"mod_account_df: {mod_account_df}")
             _id1 = mod_account_df.get('id', None)
             _id2 = [idx for idx, account in enumerate(memory) if account.id == _id1]
             if _id2:
@@ -326,7 +322,8 @@ class DashboardApp(HydraHeadApp):
                 gridOptions=gridOptions,
                 update_on=["cellClicked"],
                 fit_columns_on_grid_load=True,
-                height=180
+                height=180,
+                reload_data=True,
             )
             st.button("Delete selected", on_click=self._btn_delete_selected)
 
@@ -364,24 +361,26 @@ class DashboardApp(HydraHeadApp):
         Database.delete_records(db_name, table_name, ids=self.ids_room_db)
 
         ## Delete from memory 
-        self.patients = self._delete_from_memory(
+        self.rooms = self._delete_from_memory(
             ids_db=self.ids_room_db,
-            memory=self.patients
+            memory=self.rooms
         )
-
+        
     def _delete_from_memory(
             self, 
             ids_db: dict,
-            memory: list,
-        )-> list:
+            memory: List,
+        )-> List:
             '''
             ids_db: idx of rows in db
             '''
-            new_memory = [
-                account for account in memory if account.id not in ids_db
+            ids_remove = [
+                account for account in memory if account.id in ids_db
             ]
-                
-            return new_memory
+            for idx in ids_remove:
+                memory.remove(idx)
+
+            return memory
     
     def UI_layout(self):
         # patients_db: List = self.patients

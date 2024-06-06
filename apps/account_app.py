@@ -16,11 +16,11 @@ class AccountApp(HydraHeadApp):
     def __init__(self, title = '', db = None, **kwargs):
         self.__dict__.update(kwargs)
         self.title = title
-
+        self.account_current = self._init_account_data()
+        self.accounts: List[Account] = db
+        self.clinics = self._load_clinics()
         if not 'init' in st.session_state:
-            self.account_current = self._init_account_data()
-            self.accounts: List[Account] = db
-            self.clinics = self._load_clinics()
+
             # idx of account db when selected
             self.idx_account_db = None
             st.session_state.init = True
@@ -243,11 +243,13 @@ class AccountApp(HydraHeadApp):
             '''
             ids_db: idx of rows in db
             '''
-            new_memory = [
-                account for account in memory if account.id not in ids_db
+            ids_remove = [
+                account for account in memory if account.id in ids_db
             ]
-            print(f"new_memory: {new_memory}")
-            return new_memory
+            for idx in ids_remove:
+                memory.remove(idx)
+
+            return memory
             
     def _init_account_data(self):
         account = {}
