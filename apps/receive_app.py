@@ -2,135 +2,43 @@ import streamlit as st
 from hydralit import HydraHeadApp
 import pandas as pd
 import datetime
-from db import DatabaseManager, PatientInfo, dataclass_to_tablename
-from utils import sidebar_logo
+from dataclasses import dataclass
+from db import (
+    Database,
+    PatientInfo,
+    DBName,
+    TableName,
+    PatientStatus
+)
+from utils import sidebar_logo, Utils
 from collections import defaultdict
-
+from st_aggrid import AgGrid, GridOptionsBuilder
+from typing import List, Dict
+from utils import Container
 class ReceiveApp(HydraHeadApp):
-    def __init__(self, title = '', db: DatabaseManager=None, **kwargs):
+    def __init__(self, title = '', db: Container = None, app_state = None, **kwargs):
         self.__dict__.update(kwargs)
         self.title = title
-        self.db = db
-        self.edited_data = defaultdict(dict)
+        # self.patient_current: Dict = self._init_patient(is_remove_idx=False)
+        self.patient_current: PatientInfo = PatientInfo(0, '', '', 0, 0, 'present', datetime.datetime.now())
+        if app_state is not None:
+            self.user = app_state.username
+            self.clinic = app_state.clinic
+            self.login = True 
+            self.db_name = f"{self.clinic}_patient.db"
+            self.patients: List[PatientInfo] = db.patients
+            print(f"Loaded {len(self.patients)} patients")
 
-    def _data_editor_changed(self):
-        edited_rows = st.session_state.ed["edited_rows"]
-        if edited_rows is not None:
-            for row_id, data in edited_rows.items():
-                keys = list(data.keys())
-                values = list(data.values())
-                st.write(f"edited row: {row_id} keys {keys} values {values}")   
-                self.edited_data[row_id] = [keys, values]
-
-    def _load_receiving_paient_data(self):
-        db = {}
-        patient_info = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])
-        patient_info = [
-            account[1:] for account in patient_info
-        ]
-        keys = tuple(PatientInfo.__annotations__.keys())
-        for data, key in zip(patient_info, keys):
-            db[key] = ""
-        return db    
-
-    def _save_to_db(self, patient_info):
-        print(f"Saving data {self.edited_data}")
-        for row_id, data in self.edited_data.items():
-            keys, values = data
-            table_name = dataclass_to_tablename[PatientInfo]
-            try:
-                print(f"Saving data: {keys} {values} {row_id}")
-                self.db.update_record_keys(table_name, keys, values, id=row_id)
-                st.success("Data saved")
-            except Exception as e:
-                st.error(f"Error saving db: {e}")
-        st.session_state.patient_info = patient_info
-
-    def _save_to_db1(self, patient_info):
-        with st.popover("Save Changes"):
-            pp_save = st.radio("Do you want to save?", ["No", "Yes"], index=0)
-            if pp_save == 'Yes':
-                self._save_to_db(patient_info)
-
-    def page_receiving_patients(self):
-        if not hasattr(self, 'receiving_patient_data'):
-            self.receiving_patient_data = self._load_receiving_paient_data()
-
-        with st.expander("Receiving Patient"):
-            ## Display from database
-
-            ## Editable button 
-            c1, c2 = st.columns([1, 1])
-            with c1:
-                cb_editable = st.checkbox("Edit", value=False)
-            with c2: 
-                pp_save_change = st.popover("Save Changes")
-            ## Load data from database
-            patient_info = self.db.fetch_all_records(dataclass_to_tablename[PatientInfo])        
-            patient_info = [
-                account[1:] for account in patient_info
-            ]
-
-            if not 'patient_info' in st.session_state:
-                st.session_state.patient_info = patient_info 
-                patient_info = st.session_state.patient_info
-
-            patient_info = st.data_editor(patient_info, on_change = self._data_editor_changed, key='ed', disabled=not(cb_editable))
-
-            ## Popup save changes
-            with pp_save_change:
-                pp_save = st.radio("Do you want to save?", ["No", "Yes"], 
-                                   index=0,
-                                   on_change=self._save_to_db,
-                                   args=(patient_info,))
-                                    
-                # if pp_save == 'Yes':
-                #     self._save_to_db()
-                #     ## Update session state
-                #     st.session_state.patient_info = patient_info
-
-        with st.form(key="my_form"):
-            r10, r11, r12, r14 = st.columns([1, 1, 1, 1])
-            with r10: txt_BN_code = st.text_input("BN Code", placeholder="Enter BN Code")
-            with r11: 
-                txt_dob = st.date_input("Date of Birth", datetime.date(2019, 7, 6))
-            with r12: 
-                rb_sex = st.radio("Sex", ["Male ", "Female"])
-            cb_Nameless = st.checkbox("Nameless")
-            txt_fullname = st.text_input("Full Name", placeholder="Enter Full Name")
-            r20, r21 = st.columns([1, 1])
-            with r20: txt_phone = st.text_input("Phone", placeholder="Enter Phone")
-            with r21: txt_email = st.text_input("Email", placeholder="Enter Email")
-            r30, r31 = st.columns([1, 1])
-            with r30: txt_address = st.text_input("Adress", placeholder="Enter the address")
-            with r31: txt_shortcut_address = st.text_input("Shortcut address", placeholder="Enter the type off address")
-            r40, r41 = st.columns([1, 1])
-            with r40: txt_city = st.text_input("city", placeholder="Enter city",
-                                               value=self.receiving_patient_data.get("city", ""),key="txt_city_receive")
-            with r41: txt_district = st.text_input("district", placeholder="Enter district",
-                                               value=self.receiving_patient_data.get("district", ""), key="txt_district_receive")
-                                
-            r50, r51 = st.columns([1, 1])
-            with r50: txt_ward = st.text_input("ward", placeholder="Enter ward")
-            with r51: txt_religion = st.text_input("religion", placeholder="Enter religion")
-            r60, r61 = st.columns([1, 1])
-            with r60: txt_id_number = st.text_input("id_number", placeholder="Enter id_number")
-            with r61: txt_job = st.text_input("job", placeholder="Enter job")
-            submitted = st.form_submit_button("Submit")
-            if submitted:
-                # Write data here
-                st.write("Form submitted")
-                patient_info = PatientInfo(
-                    city=txt_city,
-                    district=txt_district,
-                )
-                table_name = dataclass_to_tablename[PatientInfo]
-                values = (patient_info.city, patient_info.district)
-                self.db.insert_record(table_name, PatientInfo, values)
-
-    def page_contact(self):
-        st.title("Contact Page")
-        st.write("You can contact us here")    
+        if not 'init' in st.session_state:
+            # idx of account db when selected
+            self.idx_patient_db = None
+            st.session_state.init = True
+            # selected idx of dataframe 
+            self.idx_df = None 
+            # The added idx of new item in db
+            self.idx_added_record_db = None     
+            # The ids of selected rows in dataframe
+            self.ids_db: List[int] = []
 
     def run(self):
         ## Side bar
@@ -138,10 +46,265 @@ class ReceiveApp(HydraHeadApp):
         sidebar_logo(logo_url)
         st.sidebar.markdown("***")
         st.sidebar.title("Legal Records")
-        page = st.sidebar.radio("Receiving Patient", options=["Patient Info", "Contact"])
+        page = st.sidebar.radio("Receiving Patient", options=["Patient Info"])
         
         ## Page select
         if page == "Patient Info":
             self.page_receiving_patients()
-        elif page == "Contact":
-            self.page_contact()
+
+
+    def page_receiving_patients(self):
+        tab_patient, tab_patient_edit = st.tabs(["Patients", "Patient Edit"])
+        with tab_patient_edit:
+            self._tab_patient_edit()
+
+        with tab_patient:
+            self._tab_patient_add()  
+
+    def _init_patient(self, is_remove_idx=True):
+        patient: Dict = {}
+        keys = tuple(PatientInfo.__annotations__.keys())
+        for key in keys:
+            patient[key] = ""
+        return patient    
+    
+    def _tab_patient_add(self):
+        with st.form(key="patient_add"):
+            r10, r11, r12, r14 = st.columns([1, 1, 1, 1])
+            with r10: txt_BN_code = st.text_input("BN Code", value=self.patient_current.bncode, placeholder="Enter BN Code")
+            with r11: 
+                txt_dob = st.date_input("Date of Birth", value=self.patient_current.dob)
+            with r12: 
+                rb_sex = st.radio("Sex", ["Male ", "Female"])
+            cb_Nameless = st.checkbox("Nameless")
+            r20a = st.columns([1, 1, 1])
+            with r20a[0]:
+                txt_fullname = st.text_input("Full Name", placeholder="Enter Full Name")
+            with r20a[1]:
+                txt_CCCD = st.text_input("CCCD", value=self.patient_current.cccd, placeholder="CCCD")
+            with r20a[2]:
+                # txt_status = st.text_input("Left", placeholder="is_left")   
+                status: List = [i.value for i in PatientStatus]             
+                txt_status = st.selectbox("Status", status, index=status.index(self.patient_current.status))                
+            r20, r21 = st.columns([1, 1])
+            with r20: txt_phone = st.text_input("Phone", placeholder="Enter Phone")
+            with r21: txt_email = st.text_input("Email", placeholder="Enter Email")
+            r30, r31 = st.columns([1, 1])
+            with r30: txt_address = st.text_input("Adress", placeholder="Enter the address")
+            with r31: txt_shortcut_address = st.text_input("Shortcut address", placeholder="Enter the type off address")
+            r40, r41 = st.columns([1, 1])
+            with r40: txt_city = st.text_input("city", placeholder="Enter city",key="txt_city_receive")
+            with r41: txt_district = st.text_input("district", placeholder="Enter district",key="txt_district_receive")
+                                
+            r50, r51 = st.columns([1, 1])
+            with r50: txt_ward = st.text_input("ward", placeholder="Enter ward")
+            with r51: txt_religion = st.text_input("religion", placeholder="Enter religion")
+            r60, r61 = st.columns([1, 1])
+            with r60: txt_id_number = st.text_input("id_number", placeholder="Enter id_number")
+            with r61: txt_job = st.text_input("job", placeholder="Enter job")
+
+            user_input_data: dict = {
+                'room': "",
+                'bed': "",
+                'bncode': txt_BN_code,
+                'cccd': txt_CCCD,
+                'status': txt_status,
+                'dob': str(txt_dob)
+            }
+            btn_add_patient = st.form_submit_button("Add Patient")
+            btn_edit_patient = st.form_submit_button("Edit Patient")
+            if btn_add_patient:
+                ## Save to db
+                values = tuple(user_input_data.values())
+                db_name = self.db_name
+                table_name = TableName.PATIENTINFO.value
+                self.idx_added_record_db = Database.insert_record(db_name, table_name, values=values)
+                st.toast("Patient added successfully!")
+
+                ## Update memory (self.accounts)
+                keys = tuple(PatientInfo.__annotations__.keys())
+                values = tuple([self.idx_added_record_db]) + values
+
+                self.patients = self._add_to_memory(
+                    data=dict(zip(keys, values)),
+                    memory=self.patients,
+                    classfootprint=PatientInfo
+                )
+                st.rerun()
+
+            if btn_edit_patient:
+                keys = tuple(user_input_data.keys())
+                values = tuple(user_input_data.values())
+                db_name = self.db_name
+                table_name = TableName.PATIENTINFO.value
+                Database.update_record_keys(db_name, table_name, keys, values, id=self.idx_patient_db)
+                st.toast("Patient edited successfully!")
+
+                ## Save to memory (self.accounts)
+                self.patients = self._update_patient_to_memory(
+                    data=user_input_data,
+                    input_df=self.patients_df,
+                    idx_df=self.idx_df,
+                    memory=self.patients,
+                    classfootprint=PatientInfo
+                )
+                print(f"Updated patients: {self.patients}")
+                st.rerun()
+
+    def _btn_delete_selected(self):
+        '''
+        Deleted selected account
+        '''
+        ## Delete from db
+        db_name = DBName.ACCOUNT.value
+        table_name = TableName.ACCOUNT.value
+        Database.delete_records(db_name, table_name, ids=self.ids_db)
+
+        ## Delete from memory 
+        self.patients = self._delete_from_memory(
+            ids_db=self.ids_db,
+            memory=self.patients
+        )
+    def _delete_from_memory(
+            self, 
+            ids_db: dict,
+            memory: list,
+        )-> list:
+            '''
+            ids_db: idx of rows in db
+            '''
+            ids_remove = [
+                account for account in memory if account.id in ids_db
+            ]
+            for idx in ids_remove:
+                memory.remove(idx)
+
+            return memory
+        
+    def _add_to_memory(
+            self, 
+            data: dict,
+            memory: List,
+            classfootprint: dataclass = PatientInfo
+        )-> List:
+            
+            convert_data = Database.types_converter(data, classfootprint)
+            add_account = classfootprint(**convert_data)
+            memory.append(add_account)
+
+            return memory
+    
+    def _update_patient_to_memory(
+            self, 
+            data: dict,
+            input_df: pd.DataFrame,
+            idx_df: int,
+            memory: List,
+            classfootprint: dataclass = PatientInfo
+        )-> List:
+            
+            mod_account_df: dict = input_df.iloc[idx_df].to_dict()
+            _mod_account_df = Utils.assign_dict_to_dict(mod_account_df, data)
+            mod_account_df = Database.types_converter(_mod_account_df, classfootprint)
+            _id1 = mod_account_df.get('id', None)
+            _id2 = [idx for idx, account in enumerate(memory) if account.id == _id1]
+            if _id2:
+                memory[_id2[0]] = classfootprint(**mod_account_df)
+            return memory
+    
+    def _tab_patient_edit(self):
+        ## UI expander
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col1:    
+            n_rows = st.number_input("rows", min_value=10, value=30)
+        with col2: 
+            grid_height = st.number_input(
+                "Grid height", min_value=200, max_value=800, value=300
+            )
+        with col3:
+            enable_selection = st.checkbox("Enable row selection", value=False)
+            if enable_selection:
+                selection_mode = "multiple"
+                use_checkbox = True
+                groupSelectsChildren = True 
+                groupSelectsFiltered = True                     
+            enable_sidebar = st.checkbox("Enable grid sidebar", value=False)
+
+        st.markdown("***")
+        ## UI Patient List
+        _patients: List = [account.__dict__ for account in self.patients]
+        self.patients_df = pd.DataFrame(_patients, columns=PatientInfo.__annotations__.keys())
+
+        gb = GridOptionsBuilder.from_dataframe(self.patients_df)
+        # gb.configure_column("id", hide=True)
+        # gb.configure_column("dob", type=["customDateTimeFormat"], custom_format_string='yyyy-MM-dd')
+        gb.configure_column("dob", custom_format_string='yyyy-MM-dd')
+        gb.configure_default_column(
+            groupable=True, value=True, enableRowGroup=True, aggFunc="sum", editable=False
+        )
+
+        if enable_selection:
+            gb.configure_selection(selection_mode)
+            if use_checkbox:
+                gb.configure_selection(
+                    selection_mode,
+                    use_checkbox=True,
+                    groupSelectsChildren=groupSelectsChildren,
+                    groupSelectsFiltered=groupSelectsFiltered,
+                )
+        if enable_sidebar:
+            gb.configure_side_bar()
+        gb.configure_grid_options(domLayout="normal")
+        gridOptions = gb.build()
+        grid_return = AgGrid(
+            self.patients_df, 
+            gridOptions=gridOptions,
+            update_on=["cellClicked"],
+            fit_columns_on_grid_load=True,
+            height=grid_height,
+            key="patient_table",
+            reload_data=True
+        )
+        st.button("Delete selected", on_click=self._btn_delete_selected)
+
+        if grid_return.event_data is not None:
+            event_data = grid_return.event_data.get("data", None)  
+            event_type = grid_return.event_data.get("type", None)  
+            self.idx_df: int = grid_return.event_data.get("rowIndex", None)
+            if event_data is not None:
+                self.idx_patient_db = event_data.get("id", None)
+                converted_data: dict = Database.types_converter(event_data, PatientInfo)
+                self.patient_current = PatientInfo(**converted_data)
+            if event_type == "selectionChanged":
+                rows_data: pd.DataFrame = grid_return.selected_rows
+                rows: List = rows_data.to_dict(orient='records')
+                self.ids_db: List[int] = [_row.get("id") for _row in rows]
+
+    def _get_id(self, selected_data: pd.DataFrame):
+        if selected_data is not None:
+            data: List = selected_data.to_dict(orient="records")
+            selected_id = [
+                item.get("id", None) for item in data
+            ]
+            return selected_id
+        return None
+
+if __name__ == "__main__":
+    from dataclasses import dataclass
+    from db import Database
+    @dataclass 
+    class AppState:
+        username: str
+        clinic: str
+    app_state = AppState(username="huynh", clinic="PK2")
+    db_name = f"PK2_patient.db"
+    _db_patients = Database.read_db(db_name=db_name, table_name=TableName.PATIENTINFO.value)
+    db_patients: List[PatientInfo] = Utils.format_db_output(_db_patients, TableName.PATIENTINFO.value)
+    
+    db_rooms = Database.read_db(db_name=db_name, table_name=TableName.ROOM.value)
+    container = Container(
+        patients=db_patients,
+        rooms=db_rooms
+    )
+    patient = ReceiveApp(title="Receive", db=container, app_state=app_state)
+    patient.run()

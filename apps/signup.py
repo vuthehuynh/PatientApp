@@ -3,9 +3,13 @@ import os
 from typing import Dict
 import streamlit as st
 from hydralit import HydraHeadApp
-from db import SingupUser, DatabaseManager, dataclass_to_tablename
 from utils import hash_password, set_background
-
+from db import (
+    Account,
+    DBName,
+    TableName,
+    Database
+)
 class SignUpApp(HydraHeadApp):
     """
     This is an example signup application to be used to secure access within a HydraApp streamlit application.
@@ -14,7 +18,7 @@ class SignUpApp(HydraHeadApp):
     
     """
 
-    def __init__(self, title = '', db:DatabaseManager=None,  **kwargs):
+    def __init__(self, title = '', db = None,  **kwargs):
         self.__dict__.update(kwargs)
         self.title = title
         self.db = db
@@ -97,12 +101,13 @@ class SignUpApp(HydraHeadApp):
 
     def _save_signup(self, signup_data):
 
-        account = SingupUser(
+        account = Account(
             username=signup_data['username'],
             password=hash_password(signup_data['password']),
             access_level=signup_data['access_level']
         )
-        table_name = dataclass_to_tablename[SingupUser]
         values = (account.username, account.password, account.access_level)
-        self.db.insert_record(table_name, SingupUser, values)
+        db_name = DBName.ACCOUNT.value
+        table_name = TableName.ACCOUNT.value
+        Database.insert_record(db_name, table_name, values=values)
 
