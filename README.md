@@ -13,7 +13,11 @@
     >> pip install -r requirements.txt
 
 ```
+### Prepare sample database
+```
+    >> python test_db.py
 
+```
 ### Run application
 
 ```
